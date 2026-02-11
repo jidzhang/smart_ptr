@@ -34,6 +34,16 @@ if errorlevel 1 (
 )
 
 echo.
+echo ----------------------------------------
+echo Running test_thread_safety.exe (thread safety)
+echo ----------------------------------------
+test_thread_safety.exe
+if errorlevel 1 (
+    echo Error: Thread safety tests failed
+    exit /b 1
+)
+
+echo.
 echo ============================================
 echo All tests passed!
 echo ============================================

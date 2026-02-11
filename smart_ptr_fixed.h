@@ -25,6 +25,17 @@
 #ifndef __SMART_PTR_H__
 #define __SMART_PTR_H__
 
+// Windows atomics for thread-safe ref_count
+#if defined(WIN32) || defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #if __cplusplus >= 201103L || _MSC_VER >= 1900
 #define SMART_PTR_SUPPORT_MOVE 1
 #include <algorithm> // for std::swap in C++11
@@ -45,44 +56,34 @@ namespace smart_ptr
 		{
 		}
 
-		// increment use count
+		// increment use count (thread-safe)
 		int inc_ref()
 		{
-			return ++m_strong_ref_count;
+			return static_cast<int>(InterlockedIncrement(&m_strong_ref_count));
 		}
 
-		// increment weak reference count
+		// increment weak reference count (thread-safe)
 		int inc_weak_ref()
 		{
-			return ++m_weak_ref_count;
+			return static_cast<int>(InterlockedIncrement(&m_weak_ref_count));
 		}
 
-		// decrement use count
+		// decrement use count (thread-safe)
 		int dec_ref()
 		{
-			int nRs = 0;
-			if (m_strong_ref_count > 0)
-			{
-				nRs = --m_strong_ref_count;
-			}
-			return nRs;
+			return static_cast<int>(InterlockedDecrement(&m_strong_ref_count));
 		}
 
-		// decrement weak reference count
+		// decrement weak reference count (thread-safe)
 		int dec_weak_ref()
 		{
-			int nRs = 0;
-			if (m_weak_ref_count > 0)
-			{
-				nRs = --m_weak_ref_count;
-			}
-			return nRs;
+			return static_cast<int>(InterlockedDecrement(&m_weak_ref_count));
 		}
 
-		// return use count
+		// return use count (snapshot, may be stale immediately after return)
 		int get_ref_count() const
 		{
-			return m_strong_ref_count;
+			return static_cast<int>(m_strong_ref_count);
 		}
 
 		// return true if _Uses == 0
@@ -91,14 +92,15 @@ namespace smart_ptr
 			return (get_ref_count() == 0);
 		}
 
+		// return weak reference count (snapshot)
 		int get_weak_ref_count() const
 		{
-			return m_weak_ref_count;
+			return static_cast<int>(m_weak_ref_count);
 		}
 
 	private:
-		int m_strong_ref_count;
-		int m_weak_ref_count;
+		volatile LONG m_strong_ref_count;
+		volatile LONG m_weak_ref_count;
 	};
 
 #if defined(WIN32) || defined(_WIN32)
@@ -566,7 +568,7 @@ namespace smart_ptr
 		{
 		}
 
-		virtual ~unique_ptr()
+		~unique_ptr()
 		{
 			do_delete();
 		}

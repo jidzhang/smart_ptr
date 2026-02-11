@@ -10,6 +10,7 @@
 | `smart_ptr_fixed.h` | **修正后的智能指针头文件（主文件）** |
 | `demo.cpp` | 演示程序源代码 |
 | `test_smart_ptr.cpp` | 单元测试源代码 |
+| `test_thread_safety.cpp` | 多线程压力测试源代码 |
 | `build.bat` | 构建脚本（生成 .exe 和 .obj） |
 | `test_run.bat` | 一键构建并运行测试 |
 
@@ -26,6 +27,7 @@
 |------|------|
 | `demo.exe` | 演示程序可执行文件 |
 | `test_smart_ptr.exe` | 单元测试可执行文件 |
+| `test_thread_safety.exe` | 线程安全测试可执行文件 |
 | `*.obj` | 编译中间文件 |
 
 ## 主要修正内容
@@ -175,10 +177,11 @@ cl -nologo -W4 -EHsc -O2 test_smart_ptr.cpp
 ## 设计特点
 
 1. **非侵入式**：不需要修改被管理的类
-2. **引用计数**：使用独立的 `ref_count` 类管理引用计数
+2. **线程安全引用计数**：使用 Windows `Interlocked*` 原子操作，多线程环境下安全
 3. **强/弱引用分离**：支持 `shared_ptr`（强引用）和 `weak_ptr`（弱引用）
 4. **类型安全**：支持多态和类型转换
 5. **COM 支持**：提供 `com_mem_mgr` 用于 COM 对象管理
+6. **STL 兼容接口**：`make_shared`, `make_unique`, 指针转换, 比较操作符等
 
 ## 新增 STL 兼容接口
 
@@ -229,8 +232,32 @@ smart_ptr::unique_ptr<T> up2 = std::move(up1);  // 自动启用
 
 **注意**：`unique_ptr` 在 C++98 中通过私有拷贝构造函数禁止拷贝，C++11 中则启用 move 语义实现所有权转移。
 
-## 注意事项
+## 线程安全
+
+`smart_ptr` 使用 Windows 原子操作（`InterlockedIncrement`/`InterlockedDecrement`）实现引用计数，保证以下线程安全级别：
+
+| 场景 | 线程安全 |
+|------|----------|
+| 多个线程对不同 `shared_ptr` 对象操作（指向同一资源） | ✅ **安全**（引用计数原子更新） |
+| 多个线程对**同一个** `shared_ptr` 对象进行写操作 | ⚠️ **需外部同步**（与 `std::shared_ptr` 一致） |
+| 解引用访问所指向对象（`*sp`, `sp->`） | ❌ **不保证**（对象本身线程安全由用户保证） |
+
+### MFC/多线程使用示例
+
+```cpp
+// UI 线程持有
+smart_ptr::shared_ptr<Data> g_data;
+
+// 工作线程安全地拷贝（不修改 g_data 本身）
+unsigned __stdcall WorkerThread(void*) {
+    smart_ptr::shared_ptr<Data> local = g_data;  // 安全：原子增加引用计数
+    local->Process();  // 注意：Data 类本身的线程安全需自行保证
+    return 0;
+}
+```
+
+### 注意事项
 
 1. **不支持循环引用**：如果两个对象互相持有 `shared_ptr`，会导致内存泄漏。应使用 `weak_ptr` 打破循环
-2. **线程安全**：当前实现非线程安全，如需多线程使用需要额外同步
-3. **数组支持**：使用 `shared_array` 管理数组，`shared_ptr` 不支持数组（不会调用 `delete[]`）
+2. **数组支持**：使用 `shared_array` 管理数组，`shared_ptr` 不支持数组（不会调用 `delete[]`）
+3. **Windows 依赖**：使用 `Interlocked*` 原子操作，仅支持 Windows 平台

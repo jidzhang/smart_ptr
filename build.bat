@@ -32,6 +32,15 @@ if errorlevel 1 (
 echo test_smart_ptr.exe compiled successfully
 
 echo.
+echo Compiling test_thread_safety.cpp (multi-threaded stress test)...
+cl -nologo -W4 -EHsc -O2 -DUNICODE -D_UNICODE -Fotest_thread_safety.obj -Fetest_thread_safety.exe test_thread_safety.cpp
+if errorlevel 1 (
+    echo Error: test_thread_safety.cpp compilation failed
+    exit /b 1
+)
+echo test_thread_safety.exe compiled successfully
+
+echo.
 echo ============================================
 echo All files compiled successfully!
 echo ============================================
