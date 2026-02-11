@@ -6,24 +6,24 @@ echo Clean Build Artifacts
 echo ============================================
 echo.
 
-set "FILES_DELETED=0"
+set FILES_DELETED=0
 
-:: Delete .exe files (but not .bat)
+REM Delete .exe files
 for %%f in (*.exe) do (
     echo Deleting: %%f
     del /f /q "%%f"
-    set /a FILES_DELETED+=1
+    set /A FILES_DELETED=!FILES_DELETED!+1
 )
 
-:: Delete .obj files
+REM Delete .obj files
 for %%f in (*.obj) do (
     echo Deleting: %%f
     del /f /q "%%f"
-    set /a FILES_DELETED+=1
+    set /A FILES_DELETED=!FILES_DELETED!+1
 )
 
 echo.
-if !FILES_DELETED! == 0 (
+if !FILES_DELETED!==0 (
     echo No build artifacts found.
 ) else (
     echo Deleted !FILES_DELETED! file(s).
