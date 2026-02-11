@@ -13,6 +13,7 @@
 | `test_thread_safety.cpp` | 多线程压力测试源代码 |
 | `build.bat` | 构建脚本（生成 .exe 和 .obj） |
 | `test_run.bat` | 一键构建并运行测试 |
+| `clean.bat` | 清理编译生成的文件（.exe, .obj） |
 
 ### 参考文件
 | 文件 | 说明 |
