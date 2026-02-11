@@ -148,8 +148,19 @@ namespace smart_ptr
 			release();
 		}
 
-		operator T* () const throw() { return m_ptr; }
+		// Note: Implicit conversion to T* is intentionally removed for safety.
+		// Use .get() to obtain the raw pointer explicitly.
 		T& operator*() const throw() { return *m_ptr; }
+
+#if SMART_PTR_SUPPORT_MOVE
+		// C++11: explicit bool conversion for conditional statements
+		explicit operator bool() const noexcept { return m_ptr != 0; }
+#else
+		// C++03: safe bool idiom to support if(sp) without allowing int x = sp;
+		typedef T* (base_ptr::*unspecified_bool_type)() const;
+		operator unspecified_bool_type() const { return m_ptr ? &base_ptr::get : 0; }
+#endif
+
 #if defined(WIN32) || defined(_WIN32)
 		_NoAddRefReleaseOnComPtr<T>* operator->() const throw()
 		{
@@ -593,8 +604,19 @@ namespace smart_ptr
 		}
 #endif
 
-		operator T* () const throw() { return m_ptr; }
+		// Note: Implicit conversion to T* is intentionally removed for safety.
+		// Use .get() to obtain the raw pointer explicitly.
 		T& operator*() const throw() { return *m_ptr; }
+
+#if SMART_PTR_SUPPORT_MOVE
+		// C++11: explicit bool conversion for conditional statements
+		explicit operator bool() const noexcept { return m_ptr != 0; }
+#else
+		// C++03: safe bool idiom to support if(sp) without allowing int x = sp;
+		typedef T* (unique_ptr::*unspecified_bool_type)() const;
+		operator unspecified_bool_type() const { return m_ptr ? &unique_ptr::get : 0; }
+#endif
+
 #if defined(WIN32) || defined(_WIN32)
 		_NoAddRefReleaseOnComPtr<T>* operator->() const throw()
 		{
@@ -640,14 +662,6 @@ namespace smart_ptr
 		{
 			private_swap(m_ptr, rhs.m_ptr);
 		}
-
-		// explicit bool conversion for C++11
-#if SMART_PTR_SUPPORT_MOVE
-		explicit operator bool() const noexcept
-		{
-			return m_ptr != 0;
-		}
-#endif
 
 		T* m_ptr;
 	protected:
