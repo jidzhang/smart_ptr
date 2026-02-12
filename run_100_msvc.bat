@@ -32,4 +32,4 @@ if !FAIL_COUNT! EQU 0 (
 ) else (
     echo FAILURE: !FAIL_COUNT! run(s) failed
 )
-exit /b !FAIL_COUNT!
+REM End of script - let it exit naturally without goto :EOF
