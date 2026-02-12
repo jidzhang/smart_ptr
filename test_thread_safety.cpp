@@ -191,8 +191,9 @@ void Test6()
 {
     printf("\n========== Test 6 ==========\n");
 
-#if defined(_MSC_VER)
-    // MSVC: Sequential test (workaround for std::this_thread::sleep_for bug)
+#if defined(WIN32) || defined(_WIN32)
+    // Windows (both MSVC and MinGW): Sequential test
+    // Workaround for std::this_thread::sleep_for() bug on Windows
     const int ITERATIONS = 1000;
     smart_ptr::shared_ptr<TestObject> globalPtr(new TestObject());
     smart_ptr::weak_ptr<TestObject> globalWeak(globalPtr);
@@ -212,7 +213,7 @@ void Test6()
         if (local3) local3->value = i * 3;
     }
 #else
-    // GCC/Clang: Concurrent test
+    // Non-Windows (Linux/macOS): Concurrent test with time-based approach
     const int DURATION_MS = 1000;
     smart_ptr::shared_ptr<TestObject> globalPtr(new TestObject());
     smart_ptr::weak_ptr<TestObject> globalWeak(globalPtr);
