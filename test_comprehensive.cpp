@@ -1,0 +1,111 @@
+#include <stdio.h>
+#include "smart_ptr.h"
+
+using namespace smart_ptr;
+
+int test_count = 0;
+int pass_count = 0;
+
+int test_shared_ptr_basic()
+{
+    shared_ptr<int> sp(new int(42));
+    return (sp.get() != 0 && *sp == 42 && sp.use_count() == 1) ? 1 : 0;
+}
+
+int test_shared_ptr_copy()
+{
+    shared_ptr<int> sp1(new int(100));
+    shared_ptr<int> sp2 = sp1;
+    if (sp1.use_count() != 2 || sp2.use_count() != 2 || *sp1 != *sp2) return 0;
+    sp2.reset();
+    if (sp1.use_count() != 1 || sp1.get() == 0) return 0;
+    sp1.reset();
+    return (sp1.get() == 0) ? 1 : 0;
+}
+
+int test_weak_ptr_expiration()
+{
+    shared_ptr<int> sp(new int(777));
+    weak_ptr<int> wp = sp;
+    if (wp.expired()) return 0;
+
+    shared_ptr<int> sp2 = wp.lock();
+    if (sp2.get() == 0) return 0;
+
+    sp.reset();
+    if (wp.expired()) return 0;  // Should not be expired, sp2 still owns
+
+    sp2.reset();  // Last reference released
+    if (!wp.expired()) return 0;  // Should be expired now
+
+    shared_ptr<int> sp3 = wp.lock();
+    if (sp3.get() != 0) return 0;
+
+    return 1;
+}
+
+int test_unique_ptr_basic()
+{
+    unique_ptr<int> up(new int(555));
+    if (up.get() == 0 || *up != 555 || up.use_count() != 1) return 0;
+    up.reset();
+    return (up.get() == 0) ? 1 : 0;
+}
+
+int test_reset_function()
+{
+    shared_ptr<int> sp(new int(111));
+    sp.reset(new int(222));
+    return (sp.get() != 0 && *sp == 222 && sp.use_count() == 1) ? 1 : 0;
+}
+
+int test_swap_function()
+{
+    shared_ptr<int> sp1(new int(100));
+    shared_ptr<int> sp2(new int(200));
+    sp1.swap(sp2);
+    return (*sp1 == 200 && *sp2 == 100) ? 1 : 0;
+}
+
+int test_comparison_operators()
+{
+    shared_ptr<int> sp1(new int(100));
+    shared_ptr<int> sp2 = sp1;
+    shared_ptr<int> sp3(new int(100));
+    return (sp1 == sp2 && sp1 != sp3) ? 1 : 0;
+}
+
+int main()
+{
+    printf("============================================\n");
+    printf("smart_ptr.h Comprehensive Test Suite\n");
+    printf("============================================\n\n");
+
+    struct Test { int (*func)(); const char* name; };
+    Test tests[] = {
+        { test_shared_ptr_basic, "shared_ptr basic operations" },
+        { test_shared_ptr_copy, "shared_ptr copy semantics" },
+        { test_weak_ptr_expiration, "weak_ptr expiration tracking" },
+        { test_unique_ptr_basic, "unique_ptr basic operations" },
+        { test_reset_function, "reset function" },
+        { test_swap_function, "swap function" },
+        { test_comparison_operators, "comparison operators" }
+    };
+
+    for (int i = 0; i < 7; i++) {
+        test_count++;
+        printf("[Test %d] %s\n", test_count, tests[i].name);
+        if (tests[i].func()) {
+            pass_count++;
+            printf("  PASS\n\n");
+        } else {
+            printf("  FAIL\n\n");
+        }
+    }
+
+    printf("============================================\n");
+    printf("Results: %d/%d tests passed\n", pass_count, test_count);
+    printf("============================================\n");
+
+    return (pass_count == test_count) ? 0 : 1;
+}

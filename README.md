@@ -1,264 +1,174 @@
-# smart_ptr 智能指针库
+# smart_ptr - C++98 智能指针库
 
-一个兼容 C++98/C++03 的引用计数智能指针实现，同时支持 C++14。
+简洁、高效的 C++98/03 智能指针实现，提供 `shared_ptr`、`weak_ptr` 和 `unique_ptr`。
 
-## 文件清单
+## 文件说明
 
-### 核心文件（使用这些）
-| 文件 | 说明 |
-|------|------|
-| `smart_ptr_fixed.h` | **修正后的智能指针头文件（主文件）** |
-| `demo.cpp` | 演示程序源代码 |
-| `test_smart_ptr.cpp` | 单元测试源代码 |
-| `test_thread_safety.cpp` | 多线程压力测试源代码 |
-| `build.bat` | 构建脚本（生成 .exe 和 .obj） |
-| `test_run.bat` | 一键构建并运行测试 |
-| `clean.bat` | 清理编译生成的文件（.exe, .obj） |
+### 核心文件
+- **smart_ptr.h** - 单线程版本（推荐用于大多数场景）
+- **smart_ptr_fixed.h** - 线程安全版本（带原子操作，支持 GCC/Clang）
+- **smart_ptr_original.h** - 原始版本备份
 
-### 参考文件
-| 文件 | 说明 |
-|------|------|
-| `smart_ptr.h` | 原始头文件（供对比参考，不使用） |
-| `catch.hpp` | catch2 测试框架（单文件版） |
-| `catch_with_main.hpp` | catch2 预配置头文件 |
-| `catch_with_runner.hpp` | catch2 预配置头文件 |
+### 测试文件
+- **test_smart_ptr.cpp** - 单元测试（用于 smart_ptr.h）
+- **test_comprehensive.cpp** - 完整测试套件（7个测试）
+- **test_thread_safety.cpp** - 多线程测试（需要 C++11，用于 smart_ptr_fixed.h）
+- **demo.cpp** - 演示程序
 
-### 生成文件（运行 build.bat 后生成）
-| 文件 | 说明 |
-|------|------|
-| `demo.exe` | 演示程序可执行文件 |
-| `test_smart_ptr.exe` | 单元测试可执行文件 |
-| `test_thread_safety.exe` | 线程安全测试可执行文件 |
-| `*.obj` | 编译中间文件 |
+### 构建和测试脚本
 
-## 主要修正内容
+**MSVC (单线程版本):**
+- **build.bat** - 构建 demo 和单元测试
+- **test_run.bat** - 运行所有测试
 
-原 `smart_ptr.h` 存在的问题及修正：
+**GCC (单线程版本):**
+- **build_gcc.bat** - 构建 demo 和单元测试
+- **test_gcc.bat** - 运行所有测试
 
-### 1. `make_com_shared_ptr` 函数（第 613-616 行）
-**问题**：使用了 C++11 的 `template` 关键字语法，且实现逻辑有误
-```cpp
-// 原代码（有问题）
-template <typename T>
-shared_ptr<T, com_mem_mgr<T> > make_com_shared_ptr(const T* rawPtr)
-{
-    return make_shared_ptr<T, com_mem_mgr<T> >::template generate<T*>(const_cast<T*&>(rawPtr));
-}
+**单线程版本简化测试:**
+- **test_smart_ptr.bat** - MSVC 快速测试
+- **test_smart_ptr_gcc.bat** - GCC 快速测试
+- **test_smart_ptr_msvc.bat** - MSVC 快速测试（备用）
+
+**工具:**
+- **clean.bat** - 清理生成的文件
+
+## 快速开始
+
+### 方法一：使用完整测试脚本
+
+**GCC:**
+```bash
+test_gcc.bat
 ```
 
-**修正后**：
-```cpp
-template <typename T>
-shared_ptr<T, com_mem_mgr<T> > make_com_shared_ptr(T* rawPtr)
-{
-    if (rawPtr)
-        rawPtr->AddRef();
-    return shared_ptr<T, com_mem_mgr<T> >(rawPtr);
-}
-```
-
-### 2. `shared_ptr` 模板构造函数（第 318-321 行）
-**问题**：当从派生类指针构造基类 `shared_ptr` 时，基类初始化列表错误
-```cpp
-// 原代码（有问题）
-template<class Q>
-explicit shared_ptr(Q* p) : base_ptr<Q, true, std_mem_mgr<Q> >(p)
-```
-
-**修正后**：
-```cpp
-template<class Q>
-explicit shared_ptr(Q* p) : baseClass(static_cast<T*>(p))
-{
-    if (p)
-    {
-        this->m_counter = new ref_count;
-    }
-}
-```
-
-### 3. 编码问题（第 519 行）
-**问题**：有乱码注释（`//��ֹ����`）
-
-**修正后**：使用正确的注释 `// 禁止拷贝`
-
-## 使用方法
-
-### 1. 引入头文件
-```cpp
-#include "smart_ptr_fixed.h"
-```
-
-### 2. 使用智能指针
-
-#### shared_ptr（共享所有权）
-```cpp
-smart_ptr::shared_ptr<MyClass> sp1(new MyClass(42));
-smart_ptr::shared_ptr<MyClass> sp2 = sp1;  // 引用计数 +1
-printf("use_count: %d\n", sp1.use_count());  // 输出: 2
-```
-
-#### weak_ptr（弱引用，不增加引用计数）
-```cpp
-smart_ptr::weak_ptr<MyClass> wp(sp1);
-if (!wp.expired()) {
-    smart_ptr::shared_ptr<MyClass> sp3 = wp.lock();
-    // 使用 sp3...
-}
-```
-
-#### unique_ptr（独占所有权）
-```cpp
-smart_ptr::unique_ptr<MyClass> up(new MyClass(42));
-up->DoSomething();
-up.reset();  // 手动释放
-```
-
-#### shared_array（共享数组）
-```cpp
-smart_ptr::shared_array<int> arr(new int[10]);
-arr[0] = 100;
-smart_ptr::shared_array<int> arr2 = arr;  // 共享数组所有权
-```
-
-#### make_shared（工厂函数）- STL 风格
-```cpp
-// 无参数
-auto sp1 = smart_ptr::make_shared<MyClass>();
-
-// 带参数
-auto sp2 = smart_ptr::make_shared<MyClass>(42, "hello");
-```
-
-#### make_unique（工厂函数）- STL 风格
-```cpp
-// 无参数
-auto up1 = smart_ptr::make_unique<MyClass>();
-
-// 带参数
-auto up2 = smart_ptr::make_unique<MyClass>(42);
-```
-
-## 构建和测试
-
-### 环境要求
-- Windows 10
-- Visual Studio 2019 (MSVC v142)
-- Python 3（可选，用于编码转换）
-
-### 快速开始
-
-#### 一键构建
-```batch
-build.bat
-```
-
-#### 运行演示和测试
-```batch
+**MSVC:**
+```bash
 test_run.bat
 ```
 
-#### 手动构建
-```batch
-:: 设置 VS2019 环境
-call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+### 方法二：使用简化测试
 
-:: 编译演示程序（C++98）
-cl -nologo -W4 -EHsc -O2 demo.cpp
+**GCC:**
+```bash
+test_smart_ptr_gcc.bat
+```
 
-:: 编译测试程序（C++11，catch2 需要）
+**MSVC:**
+```bash
+test_smart_ptr.bat
+```
+
+### 方法三：手动编译和测试
+
+GCC:
+```bash
+# 构建单元测试
+g++ -std=c++98 -Wall -O2 -o test_smart_ptr.exe test_smart_ptr.cpp
+./test_smart_ptr.exe
+
+# 构建演示程序
+g++ -std=c++98 -Wall -O2 -o demo.exe demo.cpp
+./demo.exe
+```
+
+MSVC:
+```bash
 cl -nologo -W4 -EHsc -O2 test_smart_ptr.cpp
+test_smart_ptr.exe
+
+cl -nologo -W4 -EHsc -O2 demo.cpp
+demo.exe
 ```
 
-## 兼容性
+## 测试覆盖
 
-- **生产代码**：C++98/C++03（VS2005 - VS2022 兼容）
-- **测试代码**：C++11（catch2 框架需要）
+### test_smart_ptr.cpp (单线程)
+- shared_ptr 基本操作
+- shared_ptr 拷贝语义
+- weak_ptr 过期跟踪
+- unique_ptr 基本操作
+- 等等...
 
-## 设计特点
+### test_comprehensive.cpp (单线程，7个测试)
+1. shared_ptr 基本操作
+2. shared_ptr 拷贝语义
+3. weak_ptr 过期跟踪
+4. unique_ptr 基本操作
+5. reset 函数
+6. swap 函数
+7. 比较运算符
 
-1. **非侵入式**：不需要修改被管理的类
-2. **线程安全引用计数**：使用 Windows `Interlocked*` 原子操作，多线程环境下安全
-3. **强/弱引用分离**：支持 `shared_ptr`（强引用）和 `weak_ptr`（弱引用）
-4. **类型安全**：支持多态和类型转换
-5. **COM 支持**：提供 `com_mem_mgr` 用于 COM 对象管理
-6. **STL 兼容接口**：`make_shared`, `make_unique`, 指针转换, 比较操作符等
+### test_thread_safety.cpp (多线程，需要 C++11)
+- 并发拷贝操作
+- 快速创建/销毁循环
+- weak_ptr lock 竞争
+- reset 操作
+- swap 操作
+- 混合操作压力测试
 
-## 新增 STL 兼容接口
-
-### 比较操作符
-```cpp
-smart_ptr::shared_ptr<T> sp1, sp2;
-if (sp1 == sp2) { }  // 比较指针值
-if (sp1 != sp2) { }
-if (sp1 < sp2)  { }  // 用于关联容器
-```
-
-### 指针转换（类似 std::static_pointer_cast 等）
-```cpp
-// 静态转换
-auto sp_derived = smart_ptr::static_pointer_cast<Derived>(sp_base);
-
-// 动态转换
-auto sp_derived = smart_ptr::dynamic_pointer_cast<Derived>(sp_base);
-
-// const 转换
-auto sp_nonconst = smart_ptr::const_pointer_cast<T>(sp_const);
-```
-
-### swap 函数
-```cpp
-smart_ptr::swap(sp1, sp2);  // 自由函数，类似 std::swap
-```
-
-### unique_ptr::release()
-```cpp
-T* raw = up.release();  // 释放所有权并返回原始指针，不删除对象
-```
-
-## 移动语义（自动检测）
-
-根据编译器版本自动启用 C++11 移动语义：
-
-- **C++11 及以上**（`__cplusplus >= 201103L` 或 MSVC >= 1900）：自动启用 move 构造函数和 move 赋值运算符
-- **C++98/03**：禁用 move 语义，保持拷贝语义兼容
+## 使用示例
 
 ```cpp
-#include "smart_ptr_fixed.h"
+#include "smart_ptr.h"
+using namespace smart_ptr;
 
-// C++11 环境下可以正常使用 move
-smart_ptr::unique_ptr<T> up1(new T);
-smart_ptr::unique_ptr<T> up2 = std::move(up1);  // 自动启用
-```
+// shared_ptr - 共享所有权
+shared_ptr<int> sp1(new int(42));
+shared_ptr<int> sp2 = sp1;  // 引用计数 = 2
+sp1.reset();  // sp2 仍然拥有对象
 
-**注意**：`unique_ptr` 在 C++98 中通过私有拷贝构造函数禁止拷贝，C++11 中则启用 move 语义实现所有权转移。
-
-## 线程安全
-
-`smart_ptr` 使用 Windows 原子操作（`InterlockedIncrement`/`InterlockedDecrement`）实现引用计数，保证以下线程安全级别：
-
-| 场景 | 线程安全 |
-|------|----------|
-| 多个线程对不同 `shared_ptr` 对象操作（指向同一资源） | ✅ **安全**（引用计数原子更新） |
-| 多个线程对**同一个** `shared_ptr` 对象进行写操作 | ⚠️ **需外部同步**（与 `std::shared_ptr` 一致） |
-| 解引用访问所指向对象（`*sp`, `sp->`） | ❌ **不保证**（对象本身线程安全由用户保证） |
-
-### MFC/多线程使用示例
-
-```cpp
-// UI 线程持有
-smart_ptr::shared_ptr<Data> g_data;
-
-// 工作线程安全地拷贝（不修改 g_data 本身）
-unsigned __stdcall WorkerThread(void*) {
-    smart_ptr::shared_ptr<Data> local = g_data;  // 安全：原子增加引用计数
-    local->Process();  // 注意：Data 类本身的线程安全需自行保证
-    return 0;
+// weak_ptr - 弱引用，不增加引用计数
+weak_ptr<int> wp = sp2;
+if (!wp.expired()) {
+    shared_ptr<int> sp3 = wp.lock();  // 尝试获取 shared_ptr
 }
+
+// unique_ptr - 独占所有权
+unique_ptr<int> up(new int(100));
+// unique_ptr 不可拷贝，只能移动
 ```
 
-### 注意事项
+## 主要特性
 
-1. **不支持循环引用**：如果两个对象互相持有 `shared_ptr`，会导致内存泄漏。应使用 `weak_ptr` 打破循环
-2. **数组支持**：使用 `shared_array` 管理数组，`shared_ptr` 不支持数组（不会调用 `delete[]`）
-3. **Windows 依赖**：使用 `Interlocked*` 原子操作，仅支持 Windows 平台
+1. **C++98/03 兼容** - 无 C++11 特性，支持老版本编译器
+2. **Safe Bool Idiom** - 防止意外的类型转换（`int x = sp;` 不再编译）
+3. **RAII 设计** - 自动资源管理
+4. **完整接口** - 支持 `reset()`, `swap()`, `use_count()`, `expired()` 等
+5. **自定义内存管理器** - 支持 `std_mem_mgr`, `com_mem_mgr`, `array_mem_mgr`
+
+## 编译器兼容性
+
+| 编译器 | 版本 | 状态 |
+|--------|------|------|
+| MSVC   | VS2005+ | ✅ 测试通过 |
+| GCC    | 4.x+ | ✅ 测试通过 |
+| Clang  | 3.x+ | ✅ 应该兼容 |
+
+## 已知问题
+
+- 单线程版本（smart_ptr.h）不支持多线程环境
+- GCC `-O2` 优化时可能产生 `use-after-free` 警告（误报，不影响运行）
+- 如需线程安全，请使用 **smart_ptr_fixed.h**
+
+## 清理生成的文件
+
+```bash
+clean.bat
+```
+
+## 版本历史
+
+### v1.1 (当前版本)
+- ✅ 修复 release() 函数的 use-after-free 问题
+- ✅ 添加 Safe Bool Idiom
+- ✅ 移除 unique_ptr 的 virtual 析构函数
+- ✅ 修复命名空间结束符分号问题
+- ✅ 完整测试套件
+
+### v1.0 (原始版本)
+- 基本的 shared_ptr、weak_ptr、unique_ptr 实现
+
+## 许可证
+
+MIT License - 基于 oddman 的原始实现
