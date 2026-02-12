@@ -248,26 +248,20 @@ int test_weak_ptr_expiration() {
 
 ### 正确的编译执行方式
 
-#### 方式一：批处理脚本（推荐）
+#### 方式一：批处理脚本（唯一推荐方式）
 **对于任何涉及 `cl.exe` 的任务，必须编写 `.bat` 批处理文件，而不是在 Bash 中直接调用。**
 
-**场景A：用户已预配置 MSVC 环境（最常见）**
+**批处理文件模板（MSVC 环境已预配置）**
 ```bat
 @echo off
 setlocal enabledelayedexpansion
 
-:: ❌ 不要调用 vcvars64.bat（用户已执行）
-:: call "C:\Program Files\...\vcvars64.bat" >nul 2>&1
-
-:: 直接使用 cl.exe
 cl -nologo -W3 -EHsc -O2 -utf-8 /D_CRT_SECURE_NO_WARNINGS /c /Fooutput.obj input.cpp
 if errorlevel 1 exit /b 1
 
-:: 链接
 cl -nologo output.obj other.obj /link -OUT:program.exe
 if errorlevel 1 exit /b 1
 
-:: 运行测试
 program.exe
 if errorlevel 1 exit /b 1
 
@@ -275,38 +269,13 @@ echo All tests passed.
 exit /b 0
 ```
 
-**场景B：需要初始化 MSVC 环境（独立脚本）**
-```bat
-@echo off
-setlocal enabledelayedexpansion
-
-:: 初始化 MSVC 环境
-call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Failed to initialize MSVC environment
-    exit /b 1
-)
-
-:: 编译命令
-cl -nologo -W3 -EHsc -O2 -utf-8 program.cpp
-if errorlevel 1 exit /b 1
-
-program.exe
-exit /b %errorlevel%
-```
-
-**如何判断使用哪个场景？**
-- ✅ 用户说"我已执行 vcvars64.bat" → **场景A**（不要调用 vcvars64.bat）
-- ✅ 脚本用于 CI/CD 或独立环境 → **场景B**（需要初始化）
-- ❓ 不确定时问用户："是否需要脚本自动初始化 MSVC 环境？"
-
 **关键点**：
-- 使用 `/` 或 `-` 开头的参数（在 `.bat` 中两者都有效，推荐用 `-` 避免 Git Bash 误解析）
+- 使用 `/` 或 `-` 开头的参数（在 `.bat` 中两者都有效）
 - 使用 `errorlevel` 检查每个命令的执行结果
 - 使用 `exit /b 0` 表示成功，非 0 表示失败
 - 中文字符必须用 GB2312 或 UTF-8 with BOM 编码保存
 
-#### 方式二：通过 cmd /C 调用
+#### 方式二：通过 cmd /C 调用（仅用于单次测试）
 **如果必须在 Bash 中执行单次编译命令**，使用 `cmd /C` 包裹：
 
 ```bash
@@ -317,14 +286,7 @@ cmd /C "cl -nologo -W3 -EHsc -c -Fooutput.obj input.cpp"
 **注意**：
 - 整个命令必须用双引号包裹
 - 内层引号需要转义：`cmd /C "cl -DNAME=\"value\" ..."`
-- 复杂命令建议用批处理脚本，而不是 cmd /C
-
-#### 方式三：通过 PowerShell 调用
-```bash
-powershell -Command "& {cl -nologo -W3 -EHsc -c -Fooutput.obj input.cpp}"
-```
-
-**缺点**：PowerShell 对某些 MSVC 参数（如 `;` 分隔的列表）有特殊处理，不如批处理稳定。
+- 复杂命令必须用批处理脚本
 
 ### MSVC 常用参数说明
 
@@ -354,12 +316,6 @@ echo Project Builder
 echo ============================================
 echo.
 
-:: 初始化 MSVC 环境
-call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Failed to initialize MSVC environment
-    exit /b 1
-)
 
 :: 构建子目录
 for %%D in (demo tests) do (
@@ -490,8 +446,8 @@ cl *.obj /link -OUT:app.exe  # Bash 会展开通配符，可能超出参数长�
    - ❌ 不要用 Bash 的通配符展开传给 `cl`
 
 3. **环境变量问题**：
-   - ✅ 在 `.bat` 中用 `call vcvars64.bat` 初始化环境
-   - ❌ Bash 无法继承 `.bat` 中设置的环境变量
+   - ✅ 用户已预配置 MSVC 环境，无需初始化
+   - ❌ Bash 无法直接调用 cl.exe，必须用 .bat 文件
 
 4. **错误处理**：
    - ✅ 每个命令后检查 `errorlevel`
@@ -623,11 +579,10 @@ for %%f in (test_*) do (
 
 **批处理文件"挂起"或"失败"的诊断步骤**：
 
-1. **检查输出流**：是否用了 stderr？改用 stdout 或加 `>con`
-2. **检查环境初始化**：是否重复调用 vcvars64.bat？
-3. **逐步执行**：注释掉后面的命令，一步步测试
-4. **检查 errorlevel**：每个命令后检查 `%errorlevel%`
-5. **路径问题**：用 `cd` 确认当前目录，用 `dir` 确认文件存在
+1. **检查输出流**：是否用了 stderr？改用 stdout
+2. **逐步执行**：注释掉后面的命令，一步步测试
+3. **检查 errorlevel**：每个命令后检查 `%errorlevel%`
+4. **路径问题**：用 `cd` 确认当前目录，用 `dir` 确认文件存在
 
 **调试模板**：
 ```bat
@@ -664,7 +619,7 @@ exit /b 0
 | 问题 | 立即检查 |
 |------|----------|
 | 批处理挂起 | 输出是否用 stderr？是否等输入？ |
-| cl.exe 找不到 | vcvars64.bat 是否重复调用？路径是否正确？ |
+| cl.exe 找不到 | 是否在 Bash 中直接调用？改用 .bat 文件 |
 | 测试崩溃 | 对象是否在 main() 返回时析构？检查析构顺序 |
 | use-after-free 警告 | 删除指针前是否保存了需要的信息？ |
 | 用户说"我明确说过" | 检查是否忽略了用户的明确约束 |
