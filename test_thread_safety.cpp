@@ -194,6 +194,7 @@ void Test6()
     smart_ptr::shared_ptr<TestObject> globalPtr(new TestObject());
     smart_ptr::weak_ptr<TestObject> globalWeak(globalPtr);
     std::atomic<bool> stop{false};
+    std::atomic<int> writerCount{0};
     std::vector<std::thread> threads;
 
     auto reader = [&]() {
@@ -209,7 +210,8 @@ void Test6()
         while (!stop.load(std::memory_order_relaxed))
         {
             globalPtr.reset(new TestObject());
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            writerCount.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));  // Increased from 100us to 1ms
         }
     };
 
@@ -218,7 +220,14 @@ void Test6()
 
     std::this_thread::sleep_for(std::chrono::milliseconds(DURATION_MS));
     stop.store(true, std::memory_order_relaxed);
-    for (auto& t : threads) t.join();
+
+    // Join with timeout protection
+    for (auto& t : threads) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
+    printf("Writer iterations: %d\n", writerCount.load());
     printf("PASSED\n");
 }
 

@@ -17,9 +17,9 @@ echo.
 echo ----------------------------------------
 echo Running demo.exe
 echo ----------------------------------------
-demo.exe
+"%CD%\demo.exe"
 if errorlevel 1 (
-    echo Error: demo.exe failed
+    echo Error: demo.exe failed with exit code %errorlevel%
     exit /b 1
 )
 
@@ -27,9 +27,9 @@ echo.
 echo ----------------------------------------
 echo Running test_smart_ptr.exe (unit tests)
 echo ----------------------------------------
-test_smart_ptr.exe
+"%CD%\test_smart_ptr.exe"
 if errorlevel 1 (
-    echo Error: Unit tests failed
+    echo Error: Unit tests failed with exit code %errorlevel%
     exit /b 1
 )
 
@@ -37,9 +37,9 @@ echo.
 echo ----------------------------------------
 echo Running test_thread_safety.exe (thread safety)
 echo ----------------------------------------
-test_thread_safety.exe
+"%CD%\test_thread_safety.exe"
 if errorlevel 1 (
-    echo Error: Thread safety tests failed
+    echo Error: Thread safety tests failed with exit code %errorlevel%
     exit /b 1
 )
 

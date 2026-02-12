@@ -137,8 +137,9 @@ namespace smart_ptr
 			return false;  // Count was 0, object is being destroyed
 #elif defined(__GNUC__) || defined(__clang__)
 			// Use __sync builtins for atomic compare-and-swap
+			// __sync builtins provide full memory barrier (sequentially consistent)
 			volatile int* ptr = &m_strong_ref_count;
-			int current = *ptr;
+			int current = __sync_fetch_and_add(const_cast<volatile int*>(ptr), 0);
 			while (current != 0) {
 				int new_val = current + 1;
 				int old_val = __sync_val_compare_and_swap(ptr, current, new_val);
