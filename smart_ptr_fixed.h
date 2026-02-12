@@ -124,8 +124,9 @@ namespace smart_ptr
 		{
 #if defined(WIN32) || defined(_WIN32)
 			// Use InterlockedCompareExchange to atomically check-and-increment
+			// InterlockedCompareExchange provides full memory barrier
 			volatile LONG* ptr = &m_strong_ref_count;
-			LONG current = *ptr;
+			LONG current = InterlockedCompareExchange(ptr, 0, 0);  // Atomic read with memory barrier
 			while (current != 0) {
 				LONG new_val = current + 1;
 				LONG old_val = InterlockedCompareExchange(ptr, new_val, current);
