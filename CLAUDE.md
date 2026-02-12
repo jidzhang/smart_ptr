@@ -133,10 +133,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: 初始化 MSVC 环境（VS2019 示例）
-call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
-if errorlevel 1 exit /b 1
-
 :: 编译命令（使用 MSVC 原生参数风格）
 cl /nologo /W3 /EHsc /O2 /utf-8 /D_CRT_SECURE_NO_WARNINGS /c /Fooutput.obj input.cpp
 if errorlevel 1 exit /b 1
