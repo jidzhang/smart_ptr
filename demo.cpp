@@ -241,7 +241,15 @@ void DemoPolymorphism()
 int main()
 {
     printf("smart_ptr demo program\n");
+#if defined(_MSC_VER)
     printf("Compiler: MSVC %d\n", _MSC_VER);
+#elif defined(__GNUC__)
+    printf("Compiler: GCC %d\n", __GNUC__);
+#elif defined(__clang__)
+    printf("Compiler: Clang\n");
+#else
+    printf("Compiler: Unknown\n");
+#endif
 
     DemoSharedPtr();
     DemoWeakPtr();

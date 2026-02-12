@@ -25,8 +25,9 @@
 #ifndef __SMART_PTR_H__
 #define __SMART_PTR_H__
 
-// Windows atomics for thread-safe ref_count
+// Platform-specific atomic operations
 #if defined(WIN32) || defined(_WIN32)
+	// Windows: Use Interlocked API
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -34,6 +35,14 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+
+#elif defined(__GNUC__) || defined(__clang__)
+	// GCC/Clang: Use __sync built-in (available since GCC 4.1)
+	// These provide full memory barrier and are available on both GCC and Clang
+
+#else
+	// Unknown platform: atomic operations NOT available, fallback to non-thread-safe
+	#define SMART_PTR_NO_ATOMIC 1
 #endif
 
 #if __cplusplus >= 201103L || _MSC_VER >= 1900
@@ -45,6 +54,7 @@
 
 namespace smart_ptr
 {
+	// Reference count with thread-safe increment/decrement
 	class ref_count
 	{
 	public:
@@ -59,31 +69,106 @@ namespace smart_ptr
 		// increment use count (thread-safe)
 		int inc_ref()
 		{
+#if defined(WIN32) || defined(_WIN32)
 			return static_cast<int>(InterlockedIncrement(&m_strong_ref_count));
+#elif defined(__GNUC__) || defined(__clang__)
+			return __sync_add_and_fetch(&m_strong_ref_count, 1);
+#else
+			// Non-thread-safe fallback
+			return ++m_strong_ref_count;
+#endif
 		}
 
 		// increment weak reference count (thread-safe)
 		int inc_weak_ref()
 		{
+#if defined(WIN32) || defined(_WIN32)
 			return static_cast<int>(InterlockedIncrement(&m_weak_ref_count));
+#elif defined(__GNUC__) || defined(__clang__)
+			return __sync_add_and_fetch(&m_weak_ref_count, 1);
+#else
+			// Non-thread-safe fallback
+			return ++m_weak_ref_count;
+#endif
 		}
 
 		// decrement use count (thread-safe)
 		int dec_ref()
 		{
+#if defined(WIN32) || defined(_WIN32)
 			return static_cast<int>(InterlockedDecrement(&m_strong_ref_count));
+#elif defined(__GNUC__) || defined(__clang__)
+			return __sync_sub_and_fetch(&m_strong_ref_count, 1);
+#else
+			// Non-thread-safe fallback
+			return --m_strong_ref_count;
+#endif
 		}
 
 		// decrement weak reference count (thread-safe)
 		int dec_weak_ref()
 		{
+#if defined(WIN32) || defined(_WIN32)
 			return static_cast<int>(InterlockedDecrement(&m_weak_ref_count));
+#elif defined(__GNUC__) || defined(__clang__)
+			return __sync_sub_and_fetch(&m_weak_ref_count, 1);
+#else
+			// Non-thread-safe fallback
+			return --m_weak_ref_count;
+#endif
 		}
 
-		// return use count (snapshot, may be stale immediately after return)
+		// Atomically try to increment strong ref count if it's not zero
+		// Returns true if increment succeeded (object is alive), false otherwise
+		bool try_inc_ref()
+		{
+#if defined(WIN32) || defined(_WIN32)
+			// Use InterlockedCompareExchange to atomically check-and-increment
+			volatile LONG* ptr = &m_strong_ref_count;
+			LONG current = *ptr;
+			while (current != 0) {
+				LONG new_val = current + 1;
+				LONG old_val = InterlockedCompareExchange(ptr, new_val, current);
+				if (old_val == current) {
+					return true;  // Successfully incremented
+				}
+				current = old_val;  // Retry with new value
+			}
+			return false;  // Count was 0, object is being destroyed
+#elif defined(__GNUC__) || defined(__clang__)
+			// Use __sync builtins for atomic compare-and-swap
+			volatile int* ptr = &m_strong_ref_count;
+			int current = *ptr;
+			while (current != 0) {
+				int new_val = current + 1;
+				int old_val = __sync_val_compare_and_swap(ptr, current, new_val);
+				if (old_val == current) {
+					return true;
+				}
+				current = old_val;
+			}
+			return false;
+#else
+			// Non-thread-safe fallback
+			if (m_strong_ref_count > 0) {
+				++m_strong_ref_count;
+				return true;
+			}
+			return false;
+#endif
+		}
+
+		// return use count (atomic read)
 		int get_ref_count() const
 		{
-			return static_cast<int>(m_strong_ref_count);
+#if defined(WIN32) || defined(_WIN32)
+			return static_cast<int>(InterlockedCompareExchange(
+				const_cast<volatile LONG*>(&m_strong_ref_count), 0, 0));
+#elif defined(__GNUC__) || defined(__clang__)
+			return __sync_fetch_and_add(const_cast<volatile int*>(&m_strong_ref_count), 0);
+#else
+			return m_strong_ref_count;
+#endif
 		}
 
 		// return true if _Uses == 0
@@ -92,15 +177,28 @@ namespace smart_ptr
 			return (get_ref_count() == 0);
 		}
 
-		// return weak reference count (snapshot)
+		// return weak reference count (atomic read)
 		int get_weak_ref_count() const
 		{
-			return static_cast<int>(m_weak_ref_count);
+#if defined(WIN32) || defined(_WIN32)
+			return static_cast<int>(InterlockedCompareExchange(
+				const_cast<volatile LONG*>(&m_weak_ref_count), 0, 0));
+#elif defined(__GNUC__) || defined(__clang__)
+			return __sync_fetch_and_add(const_cast<volatile int*>(&m_weak_ref_count), 0);
+#else
+			return m_weak_ref_count;
+#endif
 		}
 
 	private:
+#if defined(WIN32) || defined(_WIN32)
 		volatile LONG m_strong_ref_count;
 		volatile LONG m_weak_ref_count;
+#else
+		// Use int on non-Windows platforms (GCC/Clang __sync built-ins work with int)
+		volatile int m_strong_ref_count;
+		volatile int m_weak_ref_count;
+#endif
 	};
 
 #if defined(WIN32) || defined(_WIN32)
@@ -246,15 +344,23 @@ namespace smart_ptr
 		template <class Q, bool b, typename mem_mgr2>
 		void acquire(const base_ptr<Q, b, mem_mgr2>& rhs) throw()
 		{
-			if (rhs.m_counter && rhs.m_counter->get_ref_count())
+			if (rhs.m_counter)
 			{
-				m_counter = rhs.m_counter;
 				if (is_strong)
 				{
-					m_counter->inc_ref();
+					// Try to atomically increment strong ref count if not zero
+					// This prevents TOCTOU race condition
+					if (!rhs.m_counter->try_inc_ref())
+					{
+						return;  // Object already expired, don't acquire
+					}
+					m_counter = rhs.m_counter;
 				}
 				else
 				{
+					// Weak ref increment is always safe (ref_count stays alive
+					// as long as there's at least one weak_ptr)
+					m_counter = rhs.m_counter;
 					m_counter->inc_weak_ref();
 				}
 				m_ptr = static_cast<T*>(rhs.m_ptr);
