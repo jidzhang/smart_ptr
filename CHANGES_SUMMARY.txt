@@ -37,7 +37,7 @@ smart_ptr.h 修改总结
 --------
 smart_ptr.h              - 改进后的主头文件
 smart_ptr_original.h     - 原始版本备份
-smart_ptr_fixed.h        - 线程安全版本
+smart_ptr_mt.h        - 线程安全版本
 test_comprehensive.cpp   - 完整测试套件
 test_smart_ptr_gcc.bat   - GCC 测试脚本
 test_smart_ptr.bat       - MSVC 测试脚本
@@ -54,4 +54,4 @@ CHANGES_SUMMARY.txt      - 本文件
 - C++98/03 标准
 - MSVC: VS2005+
 - GCC/Clang: 支持 C++98 的版本
-- 单线程环境（如需线程安全请用 smart_ptr_fixed.h）
+- 单线程环境（如需线程安全请用 smart_ptr_mt.h）

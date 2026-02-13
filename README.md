@@ -6,13 +6,13 @@
 
 ### 核心文件
 - **smart_ptr.h** - 单线程版本（推荐用于大多数场景）
-- **smart_ptr_fixed.h** - 线程安全版本（带原子操作，支持 GCC/Clang）
+- **smart_ptr_mt.h** - 线程安全版本（带原子操作，支持 GCC/Clang）
 - **smart_ptr_original.h** - 原始版本备份
 
 ### 测试文件
 - **test_smart_ptr.cpp** - 单元测试（用于 smart_ptr.h）
 - **test_comprehensive.cpp** - 完整测试套件（7个测试）
-- **test_thread_safety.cpp** - 多线程测试（需要 C++11，用于 smart_ptr_fixed.h）
+- **test_thread_safety.cpp** - 多线程测试（需要 C++11，用于 smart_ptr_mt.h）
 - **demo.cpp** - 演示程序
 
 ### 构建和测试脚本
@@ -149,7 +149,7 @@ unique_ptr<int> up(new int(100));
 
 - 单线程版本（smart_ptr.h）不支持多线程环境
 - GCC `-O2` 优化时可能产生 `use-after-free` 警告（误报，不影响运行）
-- 如需线程安全，请使用 **smart_ptr_fixed.h**
+- 如需线程安全，请使用 **smart_ptr_mt.h**
 
 ## 清理生成的文件
 

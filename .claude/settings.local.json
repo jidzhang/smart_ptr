@@ -74,7 +74,9 @@
       "Bash(timeout:*)",
       "Bash(git reset:*)",
       "Bash(TaskOutput task_id=\"becc03e\" block=false timeout=1000)",
-      "Bash(./run_100_gcc.sh:*)"
+      "Bash(./run_100_gcc.sh:*)",
+      "Bash(./test_thread_unsafe.exe:*)",
+      "Bash(grep:*)"
     ]
   }
 }

@@ -5,7 +5,7 @@
  */
 
 #include <stdio.h>
-#include "smart_ptr_fixed.h"
+#include "smart_ptr_mt.h"
 
 // Test class
 class TestObject

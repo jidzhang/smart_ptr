@@ -1,0 +1,15 @@
+# Build artifacts
+*.exe
+*.obj
+*.pdb
+*.ilk
+
+# Vim temporary files
+*.swp
+*.un~
+*~
+.*.swp
+.*.un~
+
+# Test artifacts
+test_thread_unsafe.cpp

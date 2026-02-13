@@ -6,7 +6,7 @@
 
 **关键约束**：
 - 严格 C++98/03 兼容（VS2005 - VS2022）
-- 单线程版本（smart_ptr.h）和多线程版本（smart_ptr_fixed.h）
+- 单线程版本（smart_ptr.h）和多线程版本（smart_ptr_mt.h）
 - 已修复的问题：release() use-after-free、Safe Bool Idiom
 
 **测试策略**：

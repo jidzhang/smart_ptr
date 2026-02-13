@@ -5,7 +5,7 @@
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "smart_ptr_fixed.h"
+#include "smart_ptr_mt.h"
 #include <string>
 
 // Test helper class
