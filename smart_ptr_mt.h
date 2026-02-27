@@ -388,28 +388,30 @@ namespace smart_ptr
 		{
 			if (m_counter)
 			{
+				// Save the counter pointer and clear it before any operations
+				ref_count* counter = m_counter;
+				m_counter = 0;
+
 				if (is_strong)
 				{
-					if (0 == m_counter->dec_ref())
+					if (0 == counter->dec_ref())
 					{
 						mem_mgr::deallocate(m_ptr);
-						m_ptr = 0;
 					}
 				}
 				else
 				{
-					m_counter->dec_weak_ref();
+					counter->dec_weak_ref();
 				}
-				if (0 == m_counter->get_ref_count() && 0 == m_counter->get_weak_ref_count())
+				// Check if we should delete the counter
+				// Note: We've already cleared m_counter, so we use the local 'counter' variable
+				if (0 == counter->get_ref_count() && 0 == counter->get_weak_ref_count())
 				{
-					delete m_counter;
-					m_counter = 0;
+					delete counter;
 				}
 			}
-			if (m_ptr)
-			{
-				m_ptr = 0;
-			}
+			// Always clear m_ptr at the end
+			m_ptr = 0;
 		}
 #if !defined(_MSC_VER) || _MSC_VER >= 1300
 		template <class Q, bool b, typename mem_mgr2>
