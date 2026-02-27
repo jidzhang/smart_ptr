@@ -45,7 +45,7 @@
 	#define SMART_PTR_NO_ATOMIC 1
 #endif
 
-// C++11 feature detection (consistent with smart_ptr.h)
+// C++11 feature detection
 #if __cplusplus >= 201103L || _MSC_VER >= 1800
 	#define SMART_PTR_NULLPTR nullptr
 	#define SMART_PTR_NOEXCEPT noexcept

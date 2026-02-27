@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo Testing smart_ptr_mt.h (MSVC)
+echo Testing smart_ptr_mt.h with MSVC
 echo ========================================
 echo.
 

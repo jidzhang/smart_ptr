@@ -13,3 +13,4 @@
 
 # Test artifacts
 test_thread_unsafe.cpp
+/.claude/settings.local.json

@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo Testing smart_ptr_mt.h (GCC)
+echo Testing smart_ptr_mt.h with GCC
 echo ========================================
 echo.
 
