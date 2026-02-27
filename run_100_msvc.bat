@@ -12,7 +12,7 @@ set /a FAIL_COUNT=0
 
 for /L %%i in (1,1,100) do (
     echo Run %%i/100...
-    call .\test_run.bat >nul 2>&1 && (
+    call .\test_msvc.bat >nul 2>&1 && (
         echo   [OK] Run %%i
         set /a PASS_COUNT+=1
     ) || (

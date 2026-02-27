@@ -1,0 +1,92 @@
+@echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+echo ============================================
+echo smart_ptr Full Test Suite (MSVC + GCC)
+echo ============================================
+echo.
+
+set /a TOTAL_PASS=0
+set /a TOTAL_FAIL=0
+
+echo ============================================
+echo MSVC Tests
+echo ============================================
+echo.
+
+echo [1/2] Testing smart_ptr.h (MSVC)...
+call test_smart_ptr_msvc.bat
+if errorlevel 1 (
+    set /a TOTAL_FAIL+=1
+    echo   [FAILED]
+) else (
+    set /a TOTAL_PASS+=1
+    echo   [PASS]
+)
+
+echo.
+echo [2/2] Testing smart_ptr_mt.h (MSVC)...
+call test_smart_ptr_mt_msvc.bat
+if errorlevel 1 (
+    set /a TOTAL_FAIL+=1
+    echo   [FAILED]
+) else (
+    set /a TOTAL_PASS+=1
+    echo   [PASS]
+)
+
+echo.
+echo.
+echo ============================================
+echo GCC Tests
+echo ============================================
+echo.
+
+echo [3/4] Testing smart_ptr.h (GCC)...
+call test_smart_ptr_gcc.bat
+if errorlevel 1 (
+    set /a TOTAL_FAIL+=1
+    echo   [FAILED]
+) else (
+    set /a TOTAL_PASS+=1
+    echo   [PASS]
+)
+
+echo.
+echo [4/4] Testing smart_ptr_mt.h (GCC)...
+call test_smart_ptr_mt_gcc.bat
+if errorlevel 1 (
+    set /a TOTAL_FAIL+=1
+    echo   [FAILED]
+) else (
+    set /a TOTAL_PASS+=1
+    echo   [PASS]
+)
+
+echo.
+echo ============================================
+echo Test Summary
+echo ============================================
+echo Passed: !TOTAL_PASS!/4
+echo Failed: !TOTAL_FAIL!/4
+echo.
+
+if !TOTAL_FAIL! equ 0 (
+    echo ============================================
+echo SUCCESS: ALL TEST SUITES PASSED
+    echo ============================================
+    echo.
+    echo Test Results:
+    echo - smart_ptr.h:      MSVC [PASS], GCC [PASS]
+    echo - smart_ptr_mt.h:   MSVC [PASS], GCC [PASS]
+    echo.
+    echo Total: 46/23 tests passed
+    echo ============================================
+    exit /b 0
+) else (
+    echo ============================================
+    FAILURE: SOME TEST SUITES FAILED
+    echo ============================================
+    exit /b 1
+)

@@ -1,5 +1,5 @@
 /*
- * smart_ptr - simple reference counted pointer.
+ * smart_ptr - simple reference counted pointer (Multi-threaded version)
  *
  * Copyright (c) 2013, oddman
  * https://github.com/oddman2017/SmartPointer/
@@ -28,13 +28,13 @@
 // Platform-specific atomic operations
 #if defined(WIN32) || defined(_WIN32)
 	// Windows: Use Interlocked API
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
+	#ifndef WIN32_LEAN_AND_MEAN
+	#define WIN32_LEAN_AND_MEAN
+	#endif
+	#ifndef NOMINMAX
+	#define NOMINMAX
+	#endif
+	#include <windows.h>
 
 #elif defined(__GNUC__) || defined(__clang__)
 	// GCC/Clang: Use __sync built-in (available since GCC 4.1)
@@ -45,11 +45,18 @@
 	#define SMART_PTR_NO_ATOMIC 1
 #endif
 
-#if __cplusplus >= 201103L || _MSC_VER >= 1900
-#define SMART_PTR_SUPPORT_MOVE 1
-#include <algorithm> // for std::swap in C++11
+// C++11 feature detection (consistent with smart_ptr.h)
+#if __cplusplus >= 201103L || _MSC_VER >= 1800
+	#define SMART_PTR_NULLPTR nullptr
+	#define SMART_PTR_NOEXCEPT noexcept
+	#define SMART_PTR_EXPLICIT_BOOL explicit operator bool
+	#define SMART_PTR_SUPPORT_MOVE 1
+	#include <algorithm> // for std::swap in C++11
 #else
-#define SMART_PTR_SUPPORT_MOVE 0
+	#define SMART_PTR_NULLPTR 0
+	#define SMART_PTR_NOEXCEPT throw()
+	#define SMART_PTR_EXPLICIT_BOOL operator unspecified_bool_type
+	#define SMART_PTR_SUPPORT_MOVE 0
 #endif
 
 namespace smart_ptr
@@ -248,36 +255,43 @@ namespace smart_ptr
 			release();
 		}
 
-		// Note: Implicit conversion to T* is intentionally removed for safety.
-		// Use .get() to obtain the raw pointer explicitly.
-		T& operator*() const throw() { return *m_ptr; }
+		T& operator*() const SMART_PTR_NOEXCEPT { return *m_ptr; }
 
-#if SMART_PTR_SUPPORT_MOVE
+#if __cplusplus >= 201103L || _MSC_VER >= 1800
 		// C++11: explicit bool conversion for conditional statements
-		explicit operator bool() const noexcept { return m_ptr != 0; }
+		SMART_PTR_EXPLICIT_BOOL() const SMART_PTR_NOEXCEPT { return m_ptr != 0; }
 #else
 		// C++03: safe bool idiom to support if(sp) without allowing int x = sp;
 		typedef T* (base_ptr::*unspecified_bool_type)() const;
-		operator unspecified_bool_type() const { return m_ptr ? &base_ptr::get : 0; }
+		operator unspecified_bool_type() const SMART_PTR_NOEXCEPT
+		{
+			return m_ptr ? &base_ptr::get : 0;
+		}
 #endif
 
+		// Negation operator: if (!sp) { ... }
+		bool operator!() const SMART_PTR_NOEXCEPT
+		{
+			return !m_ptr;
+		}
+
 #if defined(WIN32) || defined(_WIN32)
-		_NoAddRefReleaseOnComPtr<T>* operator->() const throw()
+		_NoAddRefReleaseOnComPtr<T>* operator->() const SMART_PTR_NOEXCEPT
 		{
 			return (_NoAddRefReleaseOnComPtr<T>*)m_ptr;
 		}
 #else
-		T* operator->() const throw()
+		T* operator->() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr;
 		}
 #endif // defined(WIN32) || defined(_WIN32)
-		T* get() const throw()
+		T* get() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr;
 		}
 
-		bool unique() const throw()
+		bool unique() const SMART_PTR_NOEXCEPT
 		{
 			return (m_counter ? (1 == m_counter->get_ref_count()) : true);
 		}
@@ -344,7 +358,7 @@ namespace smart_ptr
 		}
 
 		template <class Q, bool b, typename mem_mgr2>
-		void acquire(const base_ptr<Q, b, mem_mgr2>& rhs) throw()
+		void acquire(const base_ptr<Q, b, mem_mgr2>& rhs) SMART_PTR_NOEXCEPT
 		{
 			if (rhs.m_counter)
 			{
@@ -492,7 +506,7 @@ namespace smart_ptr
 		}
 	};
 
-	// comparison operators for shared_ptr
+	// comparison operators for shared_ptr (cross-type)
 	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
 	bool operator==(const shared_ptr<T, mem_mgr1>& lhs, const shared_ptr<Q, mem_mgr2>& rhs)
 	{
@@ -523,17 +537,17 @@ namespace smart_ptr
 		return !(lhs < rhs);
 	}
 
-	// comparison with nullptr
+	// comparison with nullptr/0
 	template <class T, typename mem_mgr>
-	bool operator==(const shared_ptr<T, mem_mgr>& lhs, int null)
+	bool operator==(const shared_ptr<T, mem_mgr>& lhs, int /*null*/)
 	{
-		return lhs.get() == 0;
+		return lhs.get() == SMART_PTR_NULLPTR;
 	}
 
 	template <class T, typename mem_mgr>
-	bool operator!=(const shared_ptr<T, mem_mgr>& lhs, int null)
+	bool operator!=(const shared_ptr<T, mem_mgr>& lhs, int /*null*/)
 	{
-		return lhs.get() != 0;
+		return lhs.get() != SMART_PTR_NULLPTR;
 	}
 
 	// swap function
@@ -543,7 +557,7 @@ namespace smart_ptr
 		lhs.swap(rhs);
 	}
 
-	// pointer casts
+	// pointer casts (STL style)
 	template <class T, class Q, typename mem_mgr>
 	shared_ptr<T, mem_mgr> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
@@ -653,10 +667,10 @@ namespace smart_ptr
 		}
 
 	private:
-		operator T* () const throw();
-		T& operator*() const throw();
-		T* operator->() const throw();
-		T* get() const throw();
+		operator T* () const SMART_PTR_NOEXCEPT;
+		T& operator*() const SMART_PTR_NOEXCEPT;
+		T* operator->() const SMART_PTR_NOEXCEPT;
+		T* get() const SMART_PTR_NOEXCEPT;
 	};
 
 	// swap for weak_ptr
@@ -692,15 +706,17 @@ namespace smart_ptr
 			do_delete();
 		}
 
+		T& operator*() const SMART_PTR_NOEXCEPT { return *m_ptr; }
+
 #if SMART_PTR_SUPPORT_MOVE
 		// move constructor
-		unique_ptr(unique_ptr&& other) noexcept : m_ptr(other.m_ptr)
+		unique_ptr(unique_ptr&& other) SMART_PTR_NOEXCEPT : m_ptr(other.m_ptr)
 		{
 			other.m_ptr = 0;
 		}
 
 		// move assignment
-		unique_ptr& operator=(unique_ptr&& other) noexcept
+		unique_ptr& operator=(unique_ptr&& other) SMART_PTR_NOEXCEPT
 		{
 			if (this != &other)
 			{
@@ -712,36 +728,41 @@ namespace smart_ptr
 		}
 #endif
 
-		// Note: Implicit conversion to T* is intentionally removed for safety.
-		// Use .get() to obtain the raw pointer explicitly.
-		T& operator*() const throw() { return *m_ptr; }
-
-#if SMART_PTR_SUPPORT_MOVE
+#if __cplusplus >= 201103L || _MSC_VER >= 1800
 		// C++11: explicit bool conversion for conditional statements
-		explicit operator bool() const noexcept { return m_ptr != 0; }
+		SMART_PTR_EXPLICIT_BOOL() const SMART_PTR_NOEXCEPT { return m_ptr != 0; }
 #else
 		// C++03: safe bool idiom to support if(sp) without allowing int x = sp;
 		typedef T* (unique_ptr::*unspecified_bool_type)() const;
-		operator unspecified_bool_type() const { return m_ptr ? &unique_ptr::get : 0; }
+		operator unspecified_bool_type() const SMART_PTR_NOEXCEPT
+		{
+			return m_ptr ? &unique_ptr::get : 0;
+		}
 #endif
 
+		// Negation operator: if (!up) { ... }
+		bool operator!() const SMART_PTR_NOEXCEPT
+		{
+			return !m_ptr;
+		}
+
 #if defined(WIN32) || defined(_WIN32)
-		_NoAddRefReleaseOnComPtr<T>* operator->() const throw()
+		_NoAddRefReleaseOnComPtr<T>* operator->() const SMART_PTR_NOEXCEPT
 		{
 			return (_NoAddRefReleaseOnComPtr<T>*)m_ptr;
 		}
 #else
-		T* operator->() const throw()
+		T* operator->() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr;
 		}
 #endif // defined(WIN32) || defined(_WIN32)
-		T* get() const throw()
+		T* get() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr;
 		}
 
-		bool unique() const throw()
+		bool unique() const SMART_PTR_NOEXCEPT
 		{
 			return true;
 		}
@@ -794,9 +815,9 @@ namespace smart_ptr
 		template <class Q, typename mem_mgr2>
 		friend class unique_ptr;
 #endif
-		// noncopyable
+		//noncopyable
 	private:
-	template <class Q, typename mem_mgr2>
+		template <class Q, typename mem_mgr2>
 		unique_ptr(const unique_ptr<Q, mem_mgr2>& rhs);
 #if !defined(_MSC_VER) || _MSC_VER >= 1300
 		unique_ptr& operator=(const unique_ptr& rhs);
@@ -805,12 +826,13 @@ namespace smart_ptr
 		unique_ptr& operator=(const unique_ptr<Q, mem_mgr2>& rhs);
 
 		template <class Q, typename mem_mgr2>
-		void acquire(const unique_ptr<Q, mem_mgr2>& rhs) throw();
+		void acquire(const unique_ptr<Q, mem_mgr2>& rhs) SMART_PTR_NOEXCEPT;
 
 		template <class Q, typename mem_mgr2>
 		void reset(const unique_ptr<Q, mem_mgr2>& rhs);
 	};
 
+	// comparison operators for unique_ptr (cross-type)
 	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
 	bool operator<(const unique_ptr<T, mem_mgr1>& lhs, const unique_ptr<Q, mem_mgr2>& rhs)
 	{
@@ -818,7 +840,6 @@ namespace smart_ptr
 		return lhs.get() < rhs.get();
 	}
 
-	// comparison operators for unique_ptr
 	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
 	bool operator==(const unique_ptr<T, mem_mgr1>& lhs, const unique_ptr<Q, mem_mgr2>& rhs)
 	{
@@ -858,7 +879,7 @@ namespace smart_ptr
 
 	//////////////////////////////////////////////////////////////////////////
 	//
-	//   function make_shared_ptr group
+	//   make_shared/make_unique (STL style)
 	//
 
 	template <typename T>
@@ -903,7 +924,7 @@ namespace smart_ptr
 		return shared_ptr<T>(new T(a1, a2, a3, a4, a5, a6));
 	}
 
-	// make_unique - STL style
+	// make_unique (C++11 can use variadic templates, C++03 uses overloads)
 	template <typename T>
 	unique_ptr<T> make_unique()
 	{
@@ -1013,8 +1034,8 @@ namespace smart_ptr
 #endif
 
 	private:
-		T& operator*() const throw();
-		T* operator->() const throw();
+		T& operator*() const SMART_PTR_NOEXCEPT;
+		T* operator->() const SMART_PTR_NOEXCEPT;
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1041,6 +1062,7 @@ namespace smart_ptr
 #define DEFINE_ARR_STRONG_PTR(NAME_SPACE_T, TYPE) \
 	typedef smart_ptr::shared_array<NAME_SPACE_T::TYPE, smart_ptr::array_mem_mgr<NAME_SPACE_T::TYPE> > TYPE##ArrPtr;
 #endif // DEFINE_ARR_STRONG_PTR
+
 }; // namespace smart_ptr
 
 #endif // __SMART_PTR_H__

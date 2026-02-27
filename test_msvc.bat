@@ -9,7 +9,7 @@ echo ============================================
 :: Build first if executables don't exist
 if not exist demo.exe (
     echo Executables not found, building first...
-    call "%CD%\build.bat"
+    call "%CD%\build_msvc.bat"
     if errorlevel 1 exit /b 1
 )
 

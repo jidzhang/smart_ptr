@@ -25,6 +25,17 @@
 #ifndef __SMART_PTR_H__
 #define __SMART_PTR_H__
 
+// C++11 feature detection
+#if __cplusplus >= 201103L || _MSC_VER >= 1800
+	#define SMART_PTR_NULLPTR nullptr
+	#define SMART_PTR_NOEXCEPT noexcept
+	#define SMART_PTR_EXPLICIT_BOOL explicit operator bool
+#else
+	#define SMART_PTR_NULLPTR 0
+	#define SMART_PTR_NOEXCEPT throw()
+	#define SMART_PTR_EXPLICIT_BOOL operator unspecified_bool_type
+#endif
+
 namespace smart_ptr
 {
 	class ref_count
@@ -129,38 +140,43 @@ namespace smart_ptr
 			release();
 		}
 
-		// Safe bool idiom for conditional statements: if(sp) { ... }
-		// Prevents: int x = sp;  but allows: if(sp) { ... }
+		T& operator*() const SMART_PTR_NOEXCEPT { return *m_ptr; }
+
+#if __cplusplus >= 201103L || _MSC_VER >= 1800
+		// C++11: explicit bool conversion for conditional statements
+		SMART_PTR_EXPLICIT_BOOL() const SMART_PTR_NOEXCEPT { return m_ptr != 0; }
+#else
+		// C++03: safe bool idiom to support if(sp) without allowing int x = sp;
 		typedef T* (base_ptr::*unspecified_bool_type)() const;
-		operator unspecified_bool_type() const throw()
+		operator unspecified_bool_type() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr ? &base_ptr::get : 0;
 		}
+#endif
 
 		// Negation operator: if (!sp) { ... }
-		bool operator!() const throw()
+		bool operator!() const SMART_PTR_NOEXCEPT
 		{
 			return !m_ptr;
 		}
 
-		T& operator*() const throw() { return *m_ptr; }
 #if defined(WIN32) || defined(_WIN32)
-		_NoAddRefReleaseOnComPtr<T>* operator->() const throw()
+		_NoAddRefReleaseOnComPtr<T>* operator->() const SMART_PTR_NOEXCEPT
 		{
 			return (_NoAddRefReleaseOnComPtr<T>*)m_ptr;
 		}
 #else
-		T* operator->() const throw()
+		T* operator->() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr;
 		}
 #endif // defined(WIN32) || defined(_WIN32)
-		T* get() const throw()
+		T* get() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr;
 		}
 
-		bool unique() const throw()
+		bool unique() const SMART_PTR_NOEXCEPT
 		{
 			return (m_counter ? (1 == m_counter->get_ref_count()) : true);
 		}
@@ -227,7 +243,7 @@ namespace smart_ptr
 		}
 
 		template <class Q, bool b, typename mem_mgr2>
-		void acquire(const base_ptr<Q, b, mem_mgr2>& rhs) throw()
+		void acquire(const base_ptr<Q, b, mem_mgr2>& rhs) SMART_PTR_NOEXCEPT
 		{
 			if (rhs.m_counter && rhs.m_counter->get_ref_count())
 			{
@@ -321,7 +337,7 @@ namespace smart_ptr
 		}
 
 		template<class Q>
-		explicit shared_ptr(Q* p) : base_ptr<Q, true, std_mem_mgr<Q> >(p)
+		explicit shared_ptr(Q* p) : baseClass(static_cast<T*>(p))
 		{
 		}
 
@@ -368,6 +384,85 @@ namespace smart_ptr
 			return *this;
 		}
 	};
+
+	// comparison operators for shared_ptr (cross-type)
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator==(const shared_ptr<T, mem_mgr1>& lhs, const shared_ptr<Q, mem_mgr2>& rhs)
+	{
+		return lhs.get() == rhs.get();
+	}
+
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator!=(const shared_ptr<T, mem_mgr1>& lhs, const shared_ptr<Q, mem_mgr2>& rhs)
+	{
+		return !(lhs == rhs);
+	}
+
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator<=(const shared_ptr<T, mem_mgr1>& lhs, const shared_ptr<Q, mem_mgr2>& rhs)
+	{
+		return !(rhs < lhs);
+	}
+
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator>(const shared_ptr<T, mem_mgr1>& lhs, const shared_ptr<Q, mem_mgr2>& rhs)
+	{
+		return rhs < lhs;
+	}
+
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator>=(const shared_ptr<T, mem_mgr1>& lhs, const shared_ptr<Q, mem_mgr2>& rhs)
+	{
+		return !(lhs < rhs);
+	}
+
+	// comparison with nullptr/0
+	template <class T, typename mem_mgr>
+	bool operator==(const shared_ptr<T, mem_mgr>& lhs, int /*null*/)
+	{
+		return lhs.get() == SMART_PTR_NULLPTR;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(const shared_ptr<T, mem_mgr>& lhs, int /*null*/)
+	{
+		return lhs.get() != SMART_PTR_NULLPTR;
+	}
+
+	// swap function
+	template <class T, typename mem_mgr>
+	void swap(shared_ptr<T, mem_mgr>& lhs, shared_ptr<T, mem_mgr>& rhs)
+	{
+		lhs.swap(rhs);
+	}
+
+	// pointer casts (STL style)
+	template <class T, class Q, typename mem_mgr>
+	shared_ptr<T, mem_mgr> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	{
+		return shared_ptr<T, mem_mgr>(static_cast<T*>(sp.get()));
+	}
+
+	template <class T, class Q, typename mem_mgr>
+	shared_ptr<T, mem_mgr> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	{
+		T* p = dynamic_cast<T*>(sp.get());
+		if (p)
+			return shared_ptr<T, mem_mgr>(p);
+		return shared_ptr<T, mem_mgr>();
+	}
+
+	template <class T, class Q, typename mem_mgr>
+	shared_ptr<T, mem_mgr> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	{
+		return shared_ptr<T, mem_mgr>(const_cast<T*>(sp.get()));
+	}
+
+	template <class T, class Q, typename mem_mgr>
+	shared_ptr<T, mem_mgr> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	{
+		return shared_ptr<T, mem_mgr>(reinterpret_cast<T*>(sp.get()));
+	}
 
 	template <class T, typename mem_mgr = std_mem_mgr<T> >
 	class weak_ptr : public base_ptr<T, false, mem_mgr>
@@ -437,11 +532,44 @@ namespace smart_ptr
 			return shared_ptr<T, mem_mgr>(*this);
 		}
 
+		// owner_before for use in ordered containers
+		template <class Q, typename mem_mgr2>
+		bool owner_before(const shared_ptr<Q, mem_mgr2>& other) const
+		{
+			return baseClass::m_counter < other.m_counter;
+		}
+
+		template <class Q, typename mem_mgr2>
+		bool owner_before(const weak_ptr<Q, mem_mgr2>& other) const
+		{
+			return baseClass::m_counter < other.m_counter;
+		}
+
 	private:
-		operator T* () const throw();
-		T& operator*() const throw();
-		T* operator->() const throw();
-		T* get() const throw();
+		operator T* () const SMART_PTR_NOEXCEPT;
+		T& operator*() const SMART_PTR_NOEXCEPT;
+		T* operator->() const SMART_PTR_NOEXCEPT;
+		T* get() const SMART_PTR_NOEXCEPT;
+	};
+
+	// swap for weak_ptr
+	template <class T, typename mem_mgr>
+	void swap(weak_ptr<T, mem_mgr>& lhs, weak_ptr<T, mem_mgr>& rhs)
+	{
+		lhs.swap(rhs);
+	}
+
+	// default_delete for unique_ptr
+	template <class T>
+	struct default_delete
+	{
+		void operator()(T* p) const { delete p; }
+	};
+
+	template <class T>
+	struct default_delete<T[]>
+	{
+		void operator()(T* p) const { delete[] p; }
 	};
 
 	template <class T, typename mem_mgr = std_mem_mgr<T> >
@@ -454,47 +582,61 @@ namespace smart_ptr
 
 		~unique_ptr()
 		{
-			release();
+			do_delete();
 		}
 
-		// Safe bool idiom
+		T& operator*() const SMART_PTR_NOEXCEPT { return *m_ptr; }
+
+#if __cplusplus >= 201103L || _MSC_VER >= 1800
+		// C++11: explicit bool conversion for conditional statements
+		SMART_PTR_EXPLICIT_BOOL() const SMART_PTR_NOEXCEPT { return m_ptr != 0; }
+#else
+		// C++03: safe bool idiom to support if(sp) without allowing int x = sp;
 		typedef T* (unique_ptr::*unspecified_bool_type)() const;
-		operator unspecified_bool_type() const throw()
+		operator unspecified_bool_type() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr ? &unique_ptr::get : 0;
 		}
+#endif
 
-		bool operator!() const throw()
+		// Negation operator: if (!up) { ... }
+		bool operator!() const SMART_PTR_NOEXCEPT
 		{
 			return !m_ptr;
 		}
 
-		T& operator*() const throw() { return *m_ptr; }
 #if defined(WIN32) || defined(_WIN32)
-		_NoAddRefReleaseOnComPtr<T>* operator->() const throw()
+		_NoAddRefReleaseOnComPtr<T>* operator->() const SMART_PTR_NOEXCEPT
 		{
 			return (_NoAddRefReleaseOnComPtr<T>*)m_ptr;
 		}
 #else
-		T* operator->() const throw()
+		T* operator->() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr;
 		}
 #endif // defined(WIN32) || defined(_WIN32)
-		T* get() const throw()
+		T* get() const SMART_PTR_NOEXCEPT
 		{
 			return m_ptr;
 		}
 
-		bool unique() const throw()
+		bool unique() const SMART_PTR_NOEXCEPT
 		{
 			return true;
 		}
 
 		void reset(T* p = 0)
 		{
-			release();
+			do_delete();
 			m_ptr = p;
+		}
+
+		T* release()
+		{
+			T* tmp = m_ptr;
+			m_ptr = 0;
+			return tmp;
 		}
 
 		int use_count(void) const
@@ -520,7 +662,7 @@ namespace smart_ptr
 			obj2 = static_cast<TP2>(tmp);
 		}
 
-		void release(void)
+		void do_delete(void)
 		{
 			if (m_ptr)
 			{
@@ -543,12 +685,13 @@ namespace smart_ptr
 		unique_ptr& operator=(const unique_ptr<Q, mem_mgr2>& rhs);
 
 		template <class Q, typename mem_mgr2>
-		void acquire(const unique_ptr<Q, mem_mgr2>& rhs) throw();
+		void acquire(const unique_ptr<Q, mem_mgr2>& rhs) SMART_PTR_NOEXCEPT;
 
 		template <class Q, typename mem_mgr2>
 		void reset(const unique_ptr<Q, mem_mgr2>& rhs);
 	};
 
+	// comparison operators for unique_ptr (cross-type)
 	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
 	bool operator<(const unique_ptr<T, mem_mgr1>& lhs, const unique_ptr<Q, mem_mgr2>& rhs)
 	{
@@ -556,58 +699,114 @@ namespace smart_ptr
 		return lhs.get() < rhs.get();
 	}
 
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator==(const unique_ptr<T, mem_mgr1>& lhs, const unique_ptr<Q, mem_mgr2>& rhs)
+	{
+		return lhs.get() == rhs.get();
+	}
+
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator!=(const unique_ptr<T, mem_mgr1>& lhs, const unique_ptr<Q, mem_mgr2>& rhs)
+	{
+		return !(lhs == rhs);
+	}
+
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator<=(const unique_ptr<T, mem_mgr1>& lhs, const unique_ptr<Q, mem_mgr2>& rhs)
+	{
+		return !(rhs < lhs);
+	}
+
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator>(const unique_ptr<T, mem_mgr1>& lhs, const unique_ptr<Q, mem_mgr2>& rhs)
+	{
+		return rhs < lhs;
+	}
+
+	template <class T, class Q, typename mem_mgr1, typename mem_mgr2>
+	bool operator>=(const unique_ptr<T, mem_mgr1>& lhs, const unique_ptr<Q, mem_mgr2>& rhs)
+	{
+		return !(lhs < rhs);
+	}
+
+	// swap for unique_ptr
+	template <class T, typename mem_mgr>
+	void swap(unique_ptr<T, mem_mgr>& lhs, unique_ptr<T, mem_mgr>& rhs)
+	{
+		lhs.swap(rhs);
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	//
-	//   function make_shared_ptr group
+	//   make_shared/make_unique (STL style)
 	//
 
-	template <typename T, typename mem_mgr = std_mem_mgr<T> >
-	class make_shared_ptr
+	template <typename T>
+	shared_ptr<T> make_shared()
 	{
-	public:
-		typedef shared_ptr<T, mem_mgr> pointer_type;
+		return shared_ptr<T>(new T());
+	}
 
-		static pointer_type generate(void)
-		{
-			return pointer_type(mem_mgr::allocate());
-		}
+	template <typename T, typename A1>
+	shared_ptr<T> make_shared(A1 const& a1)
+	{
+		return shared_ptr<T>(new T(a1));
+	}
 
-		template <typename A1>
-		static pointer_type generate(A1 const& a1)
-		{
-			return pointer_type(mem_mgr::allocate(a1));
-		}
+	template <typename T, typename A1, typename A2>
+	shared_ptr<T> make_shared(A1 const& a1, A2 const& a2)
+	{
+		return shared_ptr<T>(new T(a1, a2));
+	}
 
-		template <typename A1, typename A2>
-		static pointer_type generate(A1 const& a1, A2 const& a2)
-		{
-			return pointer_type(mem_mgr::allocate(a1, a2));
-		}
+	template <typename T, typename A1, typename A2, typename A3>
+	shared_ptr<T> make_shared(A1 const& a1, A2 const& a2, A3 const& a3)
+	{
+		return shared_ptr<T>(new T(a1, a2, a3));
+	}
 
-		template <typename A1, typename A2, typename A3>
-		static pointer_type generate(A1 const& a1, A2 const& a2, A3 const& a3)
-		{
-			return pointer_type(mem_mgr::allocate(a1, a2, a3));
-		}
+	template <typename T, typename A1, typename A2, typename A3, typename A4>
+	shared_ptr<T> make_shared(A1 const& a1, A2 const& a2, A3 const& a3, A4 const& a4)
+	{
+		return shared_ptr<T>(new T(a1, a2, a3, a4));
+	}
 
-		template <typename A1, typename A2, typename A3, typename A4>
-		static pointer_type generate(A1 const& a1, A2 const& a2, A3 const& a3, A4 const& a4)
-		{
-			return pointer_type(mem_mgr::allocate(a1, a2, a3, a4));
-		}
+	template <typename T, typename A1, typename A2, typename A3, typename A4, typename A5>
+	shared_ptr<T> make_shared(A1 const& a1, A2 const& a2, A3 const& a3, A4 const& a4, A5 const& a5)
+	{
+		return shared_ptr<T>(new T(a1, a2, a3, a4, a5));
+	}
 
-		template <typename A1, typename A2, typename A3, typename A4, typename A5>
-		static pointer_type generate(A1 const& a1, A2 const& a2, A3 const& a3, A4 const& a4, A5 const& a5)
-		{
-			return pointer_type(mem_mgr::allocate(a1, a2, a3, a4, a5));
-		}
+	template <typename T, typename A1, typename A2, typename A3, typename A4, typename A5, typename A6>
+	shared_ptr<T> make_shared(A1 const& a1, A2 const& a2, A3 const& a3, A4 const& a4, A5 const& a5, A6 const& a6)
+	{
+		return shared_ptr<T>(new T(a1, a2, a3, a4, a5, a6));
+	}
 
-		template <typename A1, typename A2, typename A3, typename A4, typename A5, typename A6>
-		static pointer_type generate(A1 const& a1, A2 const& a2, A3 const& a3, A4 const& a4, A5 const& a5, A6 const& a6)
-		{
-			return pointer_type(mem_mgr::allocate(a1, a2, a3, a4, a5, a6));
-		}
-	};
+	// make_unique (C++11 can use variadic templates, C++03 uses overloads)
+	template <typename T>
+	unique_ptr<T> make_unique()
+	{
+		return unique_ptr<T>(new T());
+	}
+
+	template <typename T, typename A1>
+	unique_ptr<T> make_unique(A1 const& a1)
+	{
+		return unique_ptr<T>(new T(a1));
+	}
+
+	template <typename T, typename A1, typename A2>
+	unique_ptr<T> make_unique(A1 const& a1, A2 const& a2)
+	{
+		return unique_ptr<T>(new T(a1, a2));
+	}
+
+	template <typename T, typename A1, typename A2, typename A3>
+	unique_ptr<T> make_unique(A1 const& a1, A2 const& a2, A3 const& a3)
+	{
+		return unique_ptr<T>(new T(a1, a2, a3));
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// COM pointer support
@@ -626,9 +825,9 @@ namespace smart_ptr
 	};
 
 	template <typename T>
-	shared_ptr<T, com_mem_mgr<T> > make_com_shared_ptr(const T* rawPtr)
+	shared_ptr<T, com_mem_mgr<T> > make_com_shared_ptr(T* rawPtr)
 	{
-		return make_shared_ptr<T, com_mem_mgr<T> >::template generate<T*>(const_cast<T*&>(rawPtr));
+		return shared_ptr<T, com_mem_mgr<T> >(rawPtr);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -694,8 +893,8 @@ namespace smart_ptr
 #endif
 
 	private:
-		T& operator*() const throw();
-		T* operator->() const throw();
+		T& operator*() const SMART_PTR_NOEXCEPT;
+		T* operator->() const SMART_PTR_NOEXCEPT;
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -722,75 +921,6 @@ namespace smart_ptr
 #define DEFINE_ARR_STRONG_PTR(NAME_SPACE_T, TYPE) \
 	typedef smart_ptr::shared_array<NAME_SPACE_T::TYPE, smart_ptr::array_mem_mgr<NAME_SPACE_T::TYPE> > TYPE##ArrPtr;
 #endif // DEFINE_ARR_STRONG_PTR
-	// Comparison operators for shared_ptr
-	template <class T, typename mem_mgr>
-	bool operator==(const shared_ptr<T, mem_mgr>& lhs, const shared_ptr<T, mem_mgr>& rhs)
-	{
-		return lhs.get() == rhs.get();
-	}
-
-	template <class T, typename mem_mgr>
-	bool operator!=(const shared_ptr<T, mem_mgr>& lhs, const shared_ptr<T, mem_mgr>& rhs)
-	{
-		return lhs.get() != rhs.get();
-	}
-
-	template <class T, typename mem_mgr>
-	bool operator<(const shared_ptr<T, mem_mgr>& lhs, const shared_ptr<T, mem_mgr>& rhs)
-	{
-		return lhs.get() < rhs.get();
-	}
-
-	// Comparison operators for weak_ptr
-	template <class T, typename mem_mgr>
-	bool operator==(const weak_ptr<T, mem_mgr>& lhs, const weak_ptr<T, mem_mgr>& rhs)
-	{
-		return lhs.lock().get() == rhs.lock().get();
-	}
-
-	template <class T, typename mem_mgr>
-	bool operator!=(const weak_ptr<T, mem_mgr>& lhs, const weak_ptr<T, mem_mgr>& rhs)
-	{
-		return !(lhs == rhs);
-	}
-
-	// Comparison operators for unique_ptr
-	template <class T, typename mem_mgr>
-	bool operator==(const unique_ptr<T, mem_mgr>& lhs, const unique_ptr<T, mem_mgr>& rhs)
-	{
-		return lhs.get() == rhs.get();
-	}
-
-	template <class T, typename mem_mgr>
-	bool operator!=(const unique_ptr<T, mem_mgr>& lhs, const unique_ptr<T, mem_mgr>& rhs)
-	{
-		return lhs.get() != rhs.get();
-	}
-
-	template <class T, typename mem_mgr>
-	bool operator<(const unique_ptr<T, mem_mgr>& lhs, const unique_ptr<T, mem_mgr>& rhs)
-	{
-		return lhs.get() < rhs.get();
-	}
-
-	// swap function overloads
-	template <class T, typename mem_mgr>
-	void swap(shared_ptr<T, mem_mgr>& lhs, shared_ptr<T, mem_mgr>& rhs)
-	{
-		lhs.swap(rhs);
-	}
-
-	template <class T, typename mem_mgr>
-	void swap(unique_ptr<T, mem_mgr>& lhs, unique_ptr<T, mem_mgr>& rhs)
-	{
-		lhs.swap(rhs);
-	}
-
-	template <class T, typename mem_mgr>
-	void swap(weak_ptr<T, mem_mgr>& lhs, weak_ptr<T, mem_mgr>& rhs)
-	{
-		lhs.swap(rhs);
-	}
 
 } // namespace smart_ptr
 

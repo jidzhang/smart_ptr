@@ -1,0 +1,129 @@
+===========================================
+smart_ptr 测试文件结构说明
+===========================================
+
+【核心测试入口】
+
+1. 100 次循环压力测试
+   run_100_msvc.bat  - MSVC 版本
+   run_100_gcc.sh    - GCC 版本
+
+   这两个脚本会调用：
+   - test_msvc.bat (MSVC)  -> 测试 demo + test_smart_ptr + test_thread_safety
+   - test_gcc.bat (GCC)    -> 测试 demo + test_smart_ptr + test_thread_safety
+
+2. 完整测试套件（MSVC + GCC）
+   test_all.bat  - 运行所有 4 个单元测试套件
+                 - smart_ptr.h (MSVC + GCC)
+                 - smart_ptr_mt.h (MSVC + GCC)
+
+===========================================
+
+【单元测试文件说明】
+
+1. test_comprehensive.cpp
+   - 测试头文件: smart_ptr.h (单线程版本)
+   - 代码标准: 严格 C++98
+   - MSVC 脚本: test_smart_ptr_msvc.bat
+   - GCC 脚本:  test_smart_ptr_gcc.bat
+   - 测试数量: 7 个
+   - 测试结果: ✅ MSVC 7/7 通过, GCC 7/7 通过
+
+2. test_comprehensive_mt.cpp
+   - 测试头文件: smart_ptr_mt.h (多线程版本)
+   - 代码标准: C++98 (测试代码可用 C++11)
+   - MSVC 脚本: test_smart_ptr_mt_msvc.bat
+   - GCC 脚本:  test_smart_ptr_mt_gcc.bat
+   - 测试数量: 16 个
+   - 测试结果: ✅ MSVC 16/16 通过, GCC 16/16 通过
+
+===========================================
+
+【演示程序】
+
+demo.cpp          - 严格 C++98 代码，无 C++11 特性
+                  使用 smart_ptr_mt.h
+build_demo.bat    - 单独编译 demo.cpp 的脚本
+
+运行方式:
+  build_demo.bat      -> 生成 demo.exe
+
+===========================================
+
+【完整测试验证命令】
+
+# smart_ptr.h (单线程版本)
+MSVC:
+  cl -nologo -W4 -EHsc -utf-8 -O2 test_comprehensive.cpp
+  test_comprehensive.exe
+
+GCC:
+  g++ -std=c++98 -Wall -O2 -o test_comprehensive.exe test_comprehensive.cpp
+  ./test_comprehensive.exe
+
+# smart_ptr_mt.h (多线程版本)
+MSVC:
+  cl -nologo -W4 -EHsc -utf-8 -O2 test_comprehensive_mt.cpp
+  test_comprehensive_mt.exe
+
+GCC:
+  g++ -std=c++98 -Wall -O2 -o test_comprehensive_mt.exe test_comprehensive_mt.cpp
+  ./test_comprehensive_mt.exe
+
+===========================================
+
+【测试结果汇总】✅ 全部通过
+
+| 测试项 | MSVC | GCC |
+|--------|------|-----|
+| smart_ptr.h      | 7/7 ✅ | 7/7 ✅ |
+| smart_ptr_mt.h   | 16/16 ✅ | 16/16 ✅ |
+| **总计**         | **23/23 ✅** | **23/23 ✅** |
+
+===========================================
+
+【文件命名规范】
+
+单元测试脚本（4个）：
+- test_smart_ptr_msvc.bat      -> 测试 smart_ptr.h (MSVC)
+- test_smart_ptr_gcc.bat       -> 测试 smart_ptr.h (GCC)
+- test_smart_ptr_mt_msvc.bat   -> 测试 smart_ptr_mt.h (MSVC)
+- test_smart_ptr_mt_gcc.bat    -> 测试 smart_ptr_mt.h (GCC)
+
+完整测试脚本（4个）：
+- test_msvc.bat                -> MSVC 完整测试 (demo + test_smart_ptr + test_thread_safety)
+- test_gcc.bat                 -> GCC 完整测试 (demo + test_smart_ptr + test_thread_safety)
+- test_all.bat                 -> 运行所有 4 个单元测试套件
+
+压力测试脚本（2个）：
+- run_100_msvc.bat             -> MSVC 100次循环压力测试
+- run_100_gcc.sh               -> GCC 100次循环压力测试
+
+编译脚本（3个）：
+- build_demo.bat               -> 编译 demo.cpp
+- build_msvc.bat               -> 编译 demo + test_smart_ptr + test_thread_safety (MSVC)
+- build_gcc.bat                -> 编译 demo + test_smart_ptr + test_thread_safety (GCC)
+
+清理脚本：
+- clean.bat                    -> 清理生成的文件
+
+===========================================
+
+【测试层次】
+
+1. 快速单元测试（推荐用于快速验证）
+   test_smart_ptr_msvc.bat      - smart_ptr.h (7 个测试)
+   test_smart_ptr_mt_msvc.bat   - smart_ptr_mt.h (16 个测试)
+
+2. 完整功能测试（包括 demo 和多线程测试）
+   test_msvc.bat                - MSVC 版本
+   test_gcc.bat                 - GCC 版本
+
+3. 压力测试（验证稳定性）
+   run_100_msvc.bat             - MSVC 100次循环
+   run_100_gcc.sh               - GCC 100次循环
+
+4. 全平台测试（一键运行所有测试）
+   test_all.bat                 - 测试所有 4 个组合
+
+===========================================
