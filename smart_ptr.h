@@ -26,11 +26,12 @@
 #define __SMART_PTR_H__
 
 // C++11 feature detection
-#if __cplusplus >= 201103L || _MSC_VER >= 1800
+#if __cplusplus >= 201103L || _MSC_VER >= 1900
 	#define SMART_PTR_NULLPTR nullptr
 	#define SMART_PTR_NOEXCEPT noexcept
 	#define SMART_PTR_EXPLICIT_BOOL explicit operator bool
 	#define SMART_PTR_SUPPORT_MOVE 1
+	#include <utility>
 #else
 	#define SMART_PTR_NULLPTR 0
 	#define SMART_PTR_NOEXCEPT throw()
@@ -450,10 +451,96 @@ namespace smart_ptr
 	}
 
 	template <class T, typename mem_mgr>
+	bool operator==(int /*null*/, const shared_ptr<T, mem_mgr>& rhs)
+	{
+		return rhs.get() == SMART_PTR_NULLPTR;
+	}
+
+	template <class T, typename mem_mgr>
 	bool operator!=(const shared_ptr<T, mem_mgr>& lhs, int /*null*/)
 	{
 		return lhs.get() != SMART_PTR_NULLPTR;
 	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(int /*null*/, const shared_ptr<T, mem_mgr>& rhs)
+	{
+		return rhs.get() != SMART_PTR_NULLPTR;
+	}
+
+#if SMART_PTR_SUPPORT_MOVE
+	template <class T, typename mem_mgr>
+	bool operator==(const shared_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() == nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator==(std::nullptr_t, const shared_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr == rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(const shared_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() != nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(std::nullptr_t, const shared_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr != rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator<(const shared_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() < nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator<(std::nullptr_t, const shared_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr < rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator<=(const shared_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() <= nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator<=(std::nullptr_t, const shared_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr <= rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator>(const shared_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() > nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator>(std::nullptr_t, const shared_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr > rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator>=(const shared_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() >= nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator>=(std::nullptr_t, const shared_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr >= rhs.get();
+	}
+#endif
 
 	// swap function
 	template <class T, typename mem_mgr>
@@ -624,10 +711,48 @@ namespace smart_ptr
 	}
 
 	template <class T, typename mem_mgr>
+	bool operator==(int /*null*/, const weak_ptr<T, mem_mgr>& rhs)
+	{
+		return rhs.lock().get() == SMART_PTR_NULLPTR;
+	}
+
+	template <class T, typename mem_mgr>
 	bool operator!=(const weak_ptr<T, mem_mgr>& lhs, int /*null*/)
 	{
 		return lhs.lock().get() != SMART_PTR_NULLPTR;
 	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(int /*null*/, const weak_ptr<T, mem_mgr>& rhs)
+	{
+		return rhs.lock().get() != SMART_PTR_NULLPTR;
+	}
+
+#if SMART_PTR_SUPPORT_MOVE
+	template <class T, typename mem_mgr>
+	bool operator==(const weak_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.lock().get() == nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator==(std::nullptr_t, const weak_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr == rhs.lock().get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(const weak_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.lock().get() != nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(std::nullptr_t, const weak_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr != rhs.lock().get();
+	}
+#endif
 
 	// swap for weak_ptr
 	template <class T, typename mem_mgr>
@@ -825,6 +950,105 @@ namespace smart_ptr
 	{
 		return !(lhs < rhs);
 	}
+
+	// comparison with nullptr
+	template <class T, typename mem_mgr>
+	bool operator==(const unique_ptr<T, mem_mgr>& lhs, int /*null*/)
+	{
+		return lhs.get() == SMART_PTR_NULLPTR;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator==(int /*null*/, const unique_ptr<T, mem_mgr>& rhs)
+	{
+		return rhs.get() == SMART_PTR_NULLPTR;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(const unique_ptr<T, mem_mgr>& lhs, int /*null*/)
+	{
+		return lhs.get() != SMART_PTR_NULLPTR;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(int /*null*/, const unique_ptr<T, mem_mgr>& rhs)
+	{
+		return rhs.get() != SMART_PTR_NULLPTR;
+	}
+
+#if SMART_PTR_SUPPORT_MOVE
+	template <class T, typename mem_mgr>
+	bool operator==(const unique_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() == nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator==(std::nullptr_t, const unique_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr == rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(const unique_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() != nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(std::nullptr_t, const unique_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr != rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator<(const unique_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() < nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator<(std::nullptr_t, const unique_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr < rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator<=(const unique_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() <= nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator<=(std::nullptr_t, const unique_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr <= rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator>(const unique_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() > nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator>(std::nullptr_t, const unique_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr > rhs.get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator>=(const unique_ptr<T, mem_mgr>& lhs, std::nullptr_t) noexcept
+	{
+		return lhs.get() >= nullptr;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator>=(std::nullptr_t, const unique_ptr<T, mem_mgr>& rhs) noexcept
+	{
+		return nullptr >= rhs.get();
+	}
+#endif
 
 	// swap for unique_ptr
 	template <class T, typename mem_mgr>

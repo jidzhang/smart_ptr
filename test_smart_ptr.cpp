@@ -450,3 +450,83 @@ TEST_CASE("weak_ptr - multiple weak pointers", "[edge]")
     REQUIRE(wp2.expired());
     REQUIRE(wp3.expired());
 }
+
+TEST_CASE("shared_ptr - move construction", "[shared_ptr][move]")
+{
+    InstanceCounter::Reset();
+    smart_ptr::shared_ptr<InstanceCounter> sp1(new InstanceCounter());
+    REQUIRE(InstanceCounter::instanceCount == 1);
+    REQUIRE(sp1.use_count() == 1);
+
+    smart_ptr::shared_ptr<InstanceCounter> sp2(std::move(sp1));
+    REQUIRE(sp1.get() == 0);
+    REQUIRE(sp2.use_count() == 1);
+    REQUIRE(InstanceCounter::instanceCount == 1);
+
+    sp2.reset();
+    REQUIRE(InstanceCounter::instanceCount == 0);
+    REQUIRE(InstanceCounter::destructorCount == 1);
+}
+
+TEST_CASE("shared_ptr - move assignment", "[shared_ptr][move]")
+{
+    InstanceCounter::Reset();
+    smart_ptr::shared_ptr<InstanceCounter> sp1(new InstanceCounter());
+    smart_ptr::shared_ptr<InstanceCounter> sp2(new InstanceCounter());
+
+    REQUIRE(InstanceCounter::instanceCount == 2);
+    sp2 = std::move(sp1);
+
+    REQUIRE(sp1.get() == 0);
+    REQUIRE(sp2.use_count() == 1);
+    REQUIRE(InstanceCounter::instanceCount == 1);
+
+    sp2.reset();
+    REQUIRE(InstanceCounter::instanceCount == 0);
+    REQUIRE(InstanceCounter::destructorCount == 2);  // Both objects destroyed
+}
+
+TEST_CASE("weak_ptr - move construction", "[weak_ptr][move]")
+{
+    smart_ptr::shared_ptr<TestClass> sp(new TestClass(42));
+    smart_ptr::weak_ptr<TestClass> wp1(sp);
+
+    smart_ptr::weak_ptr<TestClass> wp2(std::move(wp1));
+    REQUIRE(!wp2.expired());
+
+    smart_ptr::shared_ptr<TestClass> sp2 = wp2.lock();
+    REQUIRE(sp2.get() != 0);
+    REQUIRE(sp2->GetValue() == 42);
+}
+
+TEST_CASE("unique_ptr - move construction", "[unique_ptr][move]")
+{
+    InstanceCounter::Reset();
+    smart_ptr::unique_ptr<InstanceCounter> up1(new InstanceCounter());
+    REQUIRE(InstanceCounter::instanceCount == 1);
+
+    smart_ptr::unique_ptr<InstanceCounter> up2(std::move(up1));
+    REQUIRE(up1.get() == 0);
+    REQUIRE(up2.get() != 0);
+    REQUIRE(InstanceCounter::instanceCount == 1);
+
+    up2.reset();
+    REQUIRE(InstanceCounter::instanceCount == 0);
+}
+
+TEST_CASE("unique_ptr - move assignment", "[unique_ptr][move]")
+{
+    InstanceCounter::Reset();
+    smart_ptr::unique_ptr<InstanceCounter> up1(new InstanceCounter());
+    smart_ptr::unique_ptr<InstanceCounter> up2(new InstanceCounter());
+
+    REQUIRE(InstanceCounter::instanceCount == 2);
+    up2 = std::move(up1);
+
+    REQUIRE(up1.get() == 0);
+    REQUIRE(up2.get() != 0);
+    REQUIRE(InstanceCounter::instanceCount == 1);  // up2's original object destroyed
+
+    up2.reset();
+    REQUIRE(InstanceCounter::instanceCount == 0);
+}

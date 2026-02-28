@@ -247,6 +247,64 @@ void Test6()
     printf("PASSED\n");
 }
 
+void Test7()
+{
+    printf("\n========== Test 7 (Move semantics) ==========\n");
+    const int NUM_THREADS = 4;
+    const int ITERATIONS = 10000;
+    std::atomic<int> barrier{0};
+    std::vector<std::thread> threads;
+
+    auto worker = [&](int threadId) {
+        barrier.fetch_add(1, std::memory_order_relaxed);
+        while (barrier.load(std::memory_order_relaxed) < NUM_THREADS) {
+            std::this_thread::yield();
+        }
+        for (int i = 0; i < ITERATIONS; ++i)
+        {
+            smart_ptr::shared_ptr<TestObject> p1(new TestObject());
+            p1->value = threadId * ITERATIONS + i;
+            smart_ptr::shared_ptr<TestObject> p2(std::move(p1));
+            if (p2) {
+                p2->value = threadId * ITERATIONS + i + 1;
+            }
+        }
+    };
+
+    for (int i = 0; i < NUM_THREADS; ++i) threads.emplace_back(worker, i);
+    for (auto& t : threads) t.join();
+    printf("PASSED\n");
+}
+
+void Test8()
+{
+    printf("\n========== Test 8 (Move unique_ptr) ==========\n");
+    const int NUM_THREADS = 4;
+    const int ITERATIONS = 10000;
+    std::atomic<int> barrier{0};
+    std::vector<std::thread> threads;
+
+    auto worker = [&](int threadId) {
+        barrier.fetch_add(1, std::memory_order_relaxed);
+        while (barrier.load(std::memory_order_relaxed) < NUM_THREADS) {
+            std::this_thread::yield();
+        }
+        for (int i = 0; i < ITERATIONS; ++i)
+        {
+            smart_ptr::unique_ptr<TestObject> p1(new TestObject());
+            p1->value = threadId * ITERATIONS + i;
+            smart_ptr::unique_ptr<TestObject> p2(std::move(p1));
+            if (p2) {
+                p2->value = threadId * ITERATIONS + i + 1;
+            }
+        }
+    };
+
+    for (int i = 0; i < NUM_THREADS; ++i) threads.emplace_back(worker, i);
+    for (auto& t : threads) t.join();
+    printf("PASSED\n");
+}
+
 int main()
 {
     setvbuf(stdout, NULL, _IONBF, 0);  // Disable output buffering
@@ -258,6 +316,8 @@ int main()
     Test4();
     Test5();
     Test6();
+    Test7();
+    Test8();
     printf("All tests passed!\n");
     fflush(stdout);
     return 0;
