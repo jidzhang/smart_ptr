@@ -4,7 +4,7 @@
  * Copyright (c) 2013, oddman
  * https://github.com/oddman2017/SmartPointer/
  *
- * The is a non-intrusive implementation that allocates an additional
+ * This is a non-intrusive implementation that allocates an additional
  * int and pointer for every counted object.
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -30,10 +30,12 @@
 	#define SMART_PTR_NULLPTR nullptr
 	#define SMART_PTR_NOEXCEPT noexcept
 	#define SMART_PTR_EXPLICIT_BOOL explicit operator bool
+	#define SMART_PTR_SUPPORT_MOVE 1
 #else
 	#define SMART_PTR_NULLPTR 0
 	#define SMART_PTR_NOEXCEPT throw()
 	#define SMART_PTR_EXPLICIT_BOOL operator unspecified_bool_type
+	#define SMART_PTR_SUPPORT_MOVE 0
 #endif
 
 namespace smart_ptr
@@ -277,7 +279,6 @@ namespace smart_ptr
 				{
 					m_counter->dec_weak_ref();
 				}
-				// Check if we should delete counter BEFORE deleting it
 				should_delete = (0 == m_counter->get_ref_count() && 0 == m_counter->get_weak_ref_count());
 				if (should_delete)
 				{
@@ -351,6 +352,31 @@ namespace smart_ptr
 		shared_ptr(const shared_ptr<Q, mem_mgr2>& rhs) : baseClass(rhs)
 		{
 		}
+
+#if SMART_PTR_SUPPORT_MOVE
+		// Move constructor
+		shared_ptr(shared_ptr&& rhs) SMART_PTR_NOEXCEPT : baseClass(0)
+		{
+			this->m_counter = rhs.m_counter;
+			this->m_ptr = rhs.m_ptr;
+			rhs.m_counter = 0;
+			rhs.m_ptr = 0;
+		}
+
+		// Move assignment
+		shared_ptr& operator=(shared_ptr&& rhs) SMART_PTR_NOEXCEPT
+		{
+			if (this != &rhs)
+			{
+				this->release();
+				this->m_counter = rhs.m_counter;
+				this->m_ptr = rhs.m_ptr;
+				rhs.m_counter = 0;
+				rhs.m_ptr = 0;
+			}
+			return *this;
+		}
+#endif
 
 		// construct shared_ptr object that owns resource *rhs
 		template <class Q, typename mem_mgr2>
@@ -494,6 +520,31 @@ namespace smart_ptr
 		}
 #endif
 
+#if SMART_PTR_SUPPORT_MOVE
+		// Move constructor
+		weak_ptr(weak_ptr&& rhs) SMART_PTR_NOEXCEPT : baseClass(0)
+		{
+			this->m_counter = rhs.m_counter;
+			this->m_ptr = rhs.m_ptr;
+			rhs.m_counter = 0;
+			rhs.m_ptr = 0;
+		}
+
+		// Move assignment
+		weak_ptr& operator=(weak_ptr&& rhs) SMART_PTR_NOEXCEPT
+		{
+			if (this != &rhs)
+			{
+				this->release();
+				this->m_counter = rhs.m_counter;
+				this->m_ptr = rhs.m_ptr;
+				rhs.m_counter = 0;
+				rhs.m_ptr = 0;
+			}
+			return *this;
+		}
+#endif
+
 		~weak_ptr()
 		{
 		}
@@ -610,6 +661,26 @@ namespace smart_ptr
 		{
 			do_delete();
 		}
+
+#if SMART_PTR_SUPPORT_MOVE
+		// Move constructor
+		unique_ptr(unique_ptr&& other) SMART_PTR_NOEXCEPT : m_ptr(other.m_ptr)
+		{
+			other.m_ptr = 0;
+		}
+
+		// Move assignment
+		unique_ptr& operator=(unique_ptr&& other) SMART_PTR_NOEXCEPT
+		{
+			if (this != &other)
+			{
+				do_delete();
+				m_ptr = other.m_ptr;
+				other.m_ptr = 0;
+			}
+			return *this;
+		}
+#endif
 
 		T& operator*() const SMART_PTR_NOEXCEPT { return *m_ptr; }
 

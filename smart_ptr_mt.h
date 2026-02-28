@@ -4,7 +4,7 @@
  * Copyright (c) 2013, oddman
  * https://github.com/oddman2017/SmartPointer/
  *
- * The is a non-intrusive implementation that allocates an additional
+ * This is a non-intrusive implementation that allocates an additional
  * int and pointer for every counted object.
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -125,27 +125,23 @@ namespace smart_ptr
 #endif
 		}
 
-		// Atomically try to increment strong ref count if it's not zero
-		// Returns true if increment succeeded (object is alive), false otherwise
+		// Atomically try to increment strong ref count if it's not zero.
+		// This prevents TOCTOU race condition in acquire().
 		bool try_inc_ref()
 		{
 #if defined(WIN32) || defined(_WIN32)
-			// Use InterlockedCompareExchange to atomically check-and-increment
-			// InterlockedCompareExchange provides full memory barrier
 			volatile LONG* ptr = &m_strong_ref_count;
-			LONG current = InterlockedCompareExchange(ptr, 0, 0);  // Atomic read with memory barrier
+			LONG current = InterlockedCompareExchange(ptr, 0, 0);
 			while (current != 0) {
 				LONG new_val = current + 1;
 				LONG old_val = InterlockedCompareExchange(ptr, new_val, current);
 				if (old_val == current) {
-					return true;  // Successfully incremented
+					return true;
 				}
-				current = old_val;  // Retry with new value
+				current = old_val;
 			}
-			return false;  // Count was 0, object is being destroyed
+			return false;
 #elif defined(__GNUC__) || defined(__clang__)
-			// Use __sync builtins for atomic compare-and-swap
-			// __sync builtins provide full memory barrier (sequentially consistent)
 			volatile int* ptr = &m_strong_ref_count;
 			int current = __sync_fetch_and_add(const_cast<volatile int*>(ptr), 0);
 			while (current != 0) {
@@ -364,18 +360,16 @@ namespace smart_ptr
 			{
 				if (is_strong)
 				{
-					// Try to atomically increment strong ref count if not zero
-					// This prevents TOCTOU race condition
+					// Use try_inc_ref() to avoid TOCTOU race:
+					// atomically check if count > 0 and increment
 					if (!rhs.m_counter->try_inc_ref())
 					{
-						return;  // Object already expired, don't acquire
+						return;
 					}
 					m_counter = rhs.m_counter;
 				}
 				else
 				{
-					// Weak ref increment is always safe (ref_count stays alive
-					// as long as there's at least one weak_ptr)
 					m_counter = rhs.m_counter;
 					m_counter->inc_weak_ref();
 				}
@@ -383,12 +377,11 @@ namespace smart_ptr
 			}
 		}
 
-		// decrement the count, delete if it is 0
 		void release(void)
 		{
 			if (m_counter)
 			{
-				// Save the counter pointer and clear it before any operations
+				// Save counter to local var before release, prevent use-after-free
 				ref_count* counter = m_counter;
 				m_counter = 0;
 
@@ -403,14 +396,11 @@ namespace smart_ptr
 				{
 					counter->dec_weak_ref();
 				}
-				// Check if we should delete the counter
-				// Note: We've already cleared m_counter, so we use the local 'counter' variable
 				if (0 == counter->get_ref_count() && 0 == counter->get_weak_ref_count())
 				{
 					delete counter;
 				}
 			}
-			// Always clear m_ptr at the end
 			m_ptr = 0;
 		}
 #if !defined(_MSC_VER) || _MSC_VER >= 1300
@@ -474,6 +464,31 @@ namespace smart_ptr
 		shared_ptr(const shared_ptr<Q, mem_mgr2>& rhs) : baseClass(rhs)
 		{
 		}
+
+#if SMART_PTR_SUPPORT_MOVE
+		// Move constructor
+		shared_ptr(shared_ptr&& rhs) SMART_PTR_NOEXCEPT : baseClass(0)
+		{
+			this->m_counter = rhs.m_counter;
+			this->m_ptr = rhs.m_ptr;
+			rhs.m_counter = 0;
+			rhs.m_ptr = 0;
+		}
+
+		// Move assignment
+		shared_ptr& operator=(shared_ptr&& rhs) SMART_PTR_NOEXCEPT
+		{
+			if (this != &rhs)
+			{
+				this->release();
+				this->m_counter = rhs.m_counter;
+				this->m_ptr = rhs.m_ptr;
+				rhs.m_counter = 0;
+				rhs.m_ptr = 0;
+			}
+			return *this;
+		}
+#endif
 
 		// construct shared_ptr object that owns resource *rhs
 		template <class Q, typename mem_mgr2>
@@ -614,6 +629,31 @@ namespace smart_ptr
 		template <class Q, typename mem_mgr2>
 		weak_ptr(const weak_ptr<Q, mem_mgr2>& rhs) : baseClass(rhs)
 		{
+		}
+#endif
+
+#if SMART_PTR_SUPPORT_MOVE
+		// Move constructor
+		weak_ptr(weak_ptr&& rhs) SMART_PTR_NOEXCEPT : baseClass(0)
+		{
+			this->m_counter = rhs.m_counter;
+			this->m_ptr = rhs.m_ptr;
+			rhs.m_counter = 0;
+			rhs.m_ptr = 0;
+		}
+
+		// Move assignment
+		weak_ptr& operator=(weak_ptr&& rhs) SMART_PTR_NOEXCEPT
+		{
+			if (this != &rhs)
+			{
+				this->release();
+				this->m_counter = rhs.m_counter;
+				this->m_ptr = rhs.m_ptr;
+				rhs.m_counter = 0;
+				rhs.m_ptr = 0;
+			}
+			return *this;
 		}
 #endif
 

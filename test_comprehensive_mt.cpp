@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <utility>
 #include "smart_ptr_mt.h"
 
 using namespace smart_ptr;
@@ -496,6 +497,51 @@ int test_weak_ptr_nullptr_comparison()
 	return 1;
 }
 
+#if __cplusplus >= 201103L || _MSC_VER >= 1800
+int test_shared_ptr_move()
+{
+	shared_ptr<int> sp1(new int(100));
+	shared_ptr<int> sp2(std::move(sp1));
+	
+	if (sp2.get() == 0) return 0;
+	if (*sp2 != 100) return 0;
+	if (sp1.get() != 0) return 0;  // sp1 should be null after move
+	
+	return 1;
+}
+
+int test_unique_ptr_move()
+{
+	unique_ptr<int> up1(new int(200));
+	unique_ptr<int> up2(std::move(up1));
+	
+	if (up2.get() == 0) return 0;
+	if (*up2 != 200) return 0;
+	if (up1.get() != 0) return 0;  // up1 should be null after move
+	
+	return 1;
+}
+
+int test_weak_ptr_move()
+{
+	shared_ptr<int> sp(new int(300));
+	weak_ptr<int> wp1(sp);
+	weak_ptr<int> wp2(std::move(wp1));
+	
+	if (wp2.expired()) return 0;  // Should not be expired
+	shared_ptr<int> sp2 = wp2.lock();
+	if (sp2.get() == 0) return 0;
+	if (*sp2 != 300) return 0;
+	
+	return 1;
+}
+#else
+// Dummy functions for C++98 (move semantics not supported)
+int test_shared_ptr_move() { return 1; }
+int test_unique_ptr_move() { return 1; }
+int test_weak_ptr_move() { return 1; }
+#endif
+
 int main()
 {
 	// setvbuf(stdout, NULL, _IONBF, 0);  // Disable output buffering - removed for GCC compatibility
@@ -540,7 +586,11 @@ int main()
 		{ test_shared_ptr_from_weak, "shared_ptr construct from weak_ptr" },
 		{ test_pointer_casts, "pointer casts (static/dynamic/const)" },
 		{ test_weak_ptr_comparison_operators, "weak_ptr comparison operators" },
-		{ test_weak_ptr_nullptr_comparison, "weak_ptr nullptr comparison" }
+		{ test_weak_ptr_nullptr_comparison, "weak_ptr nullptr comparison" },
+		// Move semantics tests
+		{ test_shared_ptr_move, "shared_ptr move semantics" },
+		{ test_unique_ptr_move, "unique_ptr move semantics" },
+		{ test_weak_ptr_move, "weak_ptr move semantics" }
 	};
 
 	const int num_tests = sizeof(tests) / sizeof(tests[0]);
