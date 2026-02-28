@@ -37,6 +37,18 @@ if errorlevel 1 (
 )
 
 echo.
+echo [2/3] Testing COM smart pointer (MSVC)...
+call test_com_msvc.bat
+if errorlevel 1 (
+    set /a TOTAL_FAIL+=1
+    echo   [FAILED]
+) else (
+    set /a TOTAL_PASS+=1
+    echo   [PASS]
+)
+
+
+echo.
 echo.
 echo ============================================
 echo GCC Tests
@@ -68,8 +80,8 @@ echo.
 echo ============================================
 echo Test Summary
 echo ============================================
-echo Passed: !TOTAL_PASS!/4
-echo Failed: !TOTAL_FAIL!/4
+echo Passed: !TOTAL_PASS!/5
+echo Failed: !TOTAL_FAIL!/5
 echo.
 
 if !TOTAL_FAIL! equ 0 (
@@ -80,8 +92,9 @@ echo SUCCESS: ALL TEST SUITES PASSED
     echo Test Results:
     echo - smart_ptr.h:      MSVC [PASS], GCC [PASS]
     echo - smart_ptr_mt.h:   MSVC [PASS], GCC [PASS]
+    echo - test_com.cpp:     MSVC [PASS]
     echo.
-    echo Total: 49 tests passed (smart_ptr.h: 12, smart_ptr_mt.h: 37)
+    echo Total: 54 tests passed (smart_ptr.h: 12, smart_ptr_mt.h: 37, test_com.cpp: 5)
     echo ============================================
     exit /b 0
 ) else (

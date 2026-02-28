@@ -691,10 +691,12 @@ namespace smart_ptr
 	};
 
 	// Comparison operators for weak_ptr
+	// Note: Compare control block and pointer directly for thread safety and correctness.
+	// This ensures weak_ptrs from the same source are considered equal, even if expired.
 	template <class T, typename mem_mgr>
 	bool operator==(const weak_ptr<T, mem_mgr>& lhs, const weak_ptr<T, mem_mgr>& rhs)
 	{
-		return lhs.lock().get() == rhs.lock().get();
+		return lhs.m_counter == rhs.m_counter && lhs.m_ptr == rhs.m_ptr;
 	}
 
 	template <class T, typename mem_mgr>

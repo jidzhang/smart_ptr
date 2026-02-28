@@ -52,6 +52,20 @@ if exist test_thread_safety.exe (
 )
 
 echo.
+echo ----------------------------------------
+echo Running test_com.exe (COM smart pointer)
+echo ----------------------------------------
+if exist test_com.exe (
+    "%CD%\test_com.exe"
+    if errorlevel 1 (
+        echo Error: COM tests failed with exit code %errorlevel%
+        exit /b 1
+    )
+) else (
+    echo Warning: test_com.exe not found, skipping
+)
+
+echo.
 echo ============================================
 echo All tests passed!
 echo ============================================

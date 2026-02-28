@@ -497,6 +497,88 @@ int test_weak_ptr_nullptr_comparison()
 	return 1;
 }
 
+// Test for weak_ptr comparison thread safety and correctness
+// Verifies that weak_ptr comparison is based on control block and pointer,
+// not on the current object state (which can change between lock() calls)
+int test_weak_ptr_comparison_thread_safety()
+{
+	// Test 1: Two weak_ptrs from same source should be equal
+	{
+		shared_ptr<int> sp(new int(42));
+		weak_ptr<int> wp1(sp);
+		weak_ptr<int> wp2(sp);
+
+		if (!(wp1 == wp2)) return 0;  // Same source, should be equal
+		if (wp1 != wp2) return 0;
+	}
+
+	// Test 2: weak_ptrs from different sources should not be equal
+	{
+		shared_ptr<int> sp1(new int(100));
+		shared_ptr<int> sp2(new int(200));
+		weak_ptr<int> wp1(sp1);
+		weak_ptr<int> wp2(sp2);
+
+		if (wp1 == wp2) return 0;   // Different sources, should not be equal
+		if (!(wp1 != wp2)) return 0;
+	}
+
+	// Test 3: weak_ptrs should remain equal even after object is destroyed
+	// This is the key test for the thread safety fix
+	{
+		shared_ptr<int> sp(new int(999));
+		weak_ptr<int> wp1(sp);
+		weak_ptr<int> wp2(sp);
+
+		// Both point to same object, should be equal
+		if (!(wp1 == wp2)) return 0;
+
+		// Destroy the managed object
+		sp.reset();
+
+		// Both weak_ptrs are now expired, but should still be equal
+		// because they came from the same source (same control block)
+		if (!(wp1 == wp2)) return 0;  // Should still be equal!
+
+		// Verify they are both expired
+		if (!wp1.expired()) return 0;
+		if (!wp2.expired()) return 0;
+	}
+
+	// Test 4: Empty weak_ptrs should be equal
+	{
+		weak_ptr<int> wp1;
+		weak_ptr<int> wp2;
+
+		if (!(wp1 == wp2)) return 0;  // Both empty, should be equal
+		if (wp1 != wp2) return 0;
+	}
+
+	// Test 5: Empty weak_ptr should not equal non-empty weak_ptr
+	{
+		shared_ptr<int> sp(new int(42));
+		weak_ptr<int> wp1;
+		weak_ptr<int> wp2(sp);
+
+		if (wp1 == wp2) return 0;   // Empty vs non-empty, not equal
+		if (!(wp1 != wp2)) return 0;
+	}
+
+	// Test 6: weak_ptr from different copy chains should be equal
+	{
+		shared_ptr<int> sp(new int(42));
+		weak_ptr<int> wp1(sp);
+		weak_ptr<int> wp2 = wp1;     // Copy of wp1
+		weak_ptr<int> wp3(wp2);      // Copy of wp2
+
+		if (!(wp1 == wp2)) return 0;
+		if (!(wp2 == wp3)) return 0;
+		if (!(wp1 == wp3)) return 0;
+	}
+
+	return 1;
+}
+
 #if __cplusplus >= 201103L || _MSC_VER >= 1800
 int test_shared_ptr_move()
 {
@@ -587,6 +669,7 @@ int main()
 		{ test_pointer_casts, "pointer casts (static/dynamic/const)" },
 		{ test_weak_ptr_comparison_operators, "weak_ptr comparison operators" },
 		{ test_weak_ptr_nullptr_comparison, "weak_ptr nullptr comparison" },
+		{ test_weak_ptr_comparison_thread_safety, "weak_ptr comparison thread safety" },
 		// Move semantics tests
 		{ test_shared_ptr_move, "shared_ptr move semantics" },
 		{ test_unique_ptr_move, "unique_ptr move semantics" },

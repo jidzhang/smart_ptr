@@ -36,6 +36,15 @@ if errorlevel 1 (
 echo test_thread_safety.exe compiled successfully
 
 echo.
+echo Compiling test_com.cpp (COM smart pointer test)...
+cl -nologo -W4 -EHsc -O2 -DUNICODE -D_UNICODE test_com.cpp
+if errorlevel 1 (
+    echo Error: test_com.cpp compilation failed
+    exit /b 1
+)
+echo test_com.exe compiled successfully
+
+echo.
 echo ============================================
 echo All files compiled successfully!
 echo ============================================
