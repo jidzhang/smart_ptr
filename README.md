@@ -10,7 +10,7 @@
 
 ### 源代码和测试文件
 - **test_comprehensive.cpp** - smart_ptr.h 单元测试（7个测试，C++98）
-- **test_comprehensive_mt.cpp** - smart_ptr_mt.h 单元测试（16个测试，C++98）
+- **test_comprehensive_mt.cpp** - smart_ptr_mt.h 单元测试（32个测试，C++98）
 - **demo.cpp** - 演示程序（使用 smart_ptr_mt.h，严格 C++98）
 - **test_smart_ptr.cpp** - catch2 框架完整测试（C++11，使用 smart_ptr_mt.h）
 - **test_thread_safety.cpp** - 多线程压力测试（C++11，使用 smart_ptr_mt.h）
@@ -38,8 +38,8 @@ run_100_gcc.sh     - GCC 100次循环压力测试
 ```
 test_smart_ptr_msvc.bat       - smart_ptr.h + MSVC  (7个测试)
 test_smart_ptr_gcc.bat        - smart_ptr.h + GCC   (7个测试)
-test_smart_ptr_mt_msvc.bat    - smart_ptr_mt.h + MSVC (16个测试)
-test_smart_ptr_mt_gcc.bat     - smart_ptr_mt.h + GCC   (16个测试)
+test_smart_ptr_mt_msvc.bat    - smart_ptr_mt.h + MSVC (32个测试)
+test_smart_ptr_mt_gcc.bat     - smart_ptr_mt.h + GCC   (32个测试)
 ```
 
 **工具：**
@@ -100,14 +100,16 @@ g++ -std=c++98 -Wall -O2 -o demo.exe demo.cpp  # GCC
 6. swap 函数
 7. 比较运算符
 
-### test_comprehensive_mt.cpp (smart_ptr_mt.h，16个测试)
-1-4. 同上（基础功能）
-5. unique_ptr release() 方法
-6. operator!() 否定运算符
-7-10. 跨类型比较等
-11. weak_ptr owner_before()
-12. make_shared/make_unique 工厂函数
-13-16. nullptr 比较、swap 操作等
+### test_comprehensive_mt.cpp (smart_ptr_mt.h，32个测试)
+1-7. 基础功能（shared_ptr、weak_ptr、unique_ptr 基本操作）
+8-11. 比较运算符、operator!()、跨类型比较、owner_before()
+12-14. make_shared、make_unique、nullptr 比较
+15-16. unique_ptr swap、weak_ptr swap
+17-20. weak_ptr 扩展（默认构造、拷贝赋值、reset、use_count）
+21-23. unique_ptr 扩展（默认构造、reset(new)、unique()）
+24-27. shared_ptr 扩展（get()、解引用、从 weak_ptr 构造、unique()）
+28-30. shared_array（基本操作、拷贝、swap）
+31-32. 弱引用赋值、指针转换
 
 ### test_smart_ptr.cpp (catch2 框架)
 - 完整的功能测试覆盖
@@ -172,8 +174,8 @@ unique_ptr.release();  // 释放所有权，返回原始指针
 
 | 编译器 | 版本 | smart_ptr.h | smart_ptr_mt.h |
 |--------|------|-------------|---------------|
-| MSVC   | VS2005+ | ✅ 7/7 通过 | ✅ 16/16 通过 |
-| GCC    | 4.x+   | ✅ 7/7 通过 | ✅ 16/16 通过 |
+| MSVC   | VS2005+ | ✅ 7/7 通过 | ✅ 32/32 通过 |
+| GCC    | 4.x+   | ✅ 7/7 通过 | ✅ 32/32 通过 |
 | Clang  | 3.x+   | ✅ 兼容 | ✅ 兼容 |
 
 ## 🔧 手动编译示例
@@ -213,7 +215,7 @@ clean.bat
 - ✅ 添加 make_shared/make_unique 工厂函数
 - ✅ 添加 unique_ptr::release() 方法
 - ✅ 统一接口，接近 STL 风格
-- ✅ 完整单元测试覆盖（23个测试用例）
+- ✅ 完整单元测试覆盖（39个测试用例）
 - ✅ 100次循环压力测试验证
 
 ### v1.1

@@ -34,8 +34,8 @@ smart_ptr 测试文件结构说明
    - 代码标准: C++98 (测试代码可用 C++11)
    - MSVC 脚本: test_smart_ptr_mt_msvc.bat
    - GCC 脚本:  test_smart_ptr_mt_gcc.bat
-   - 测试数量: 16 个
-   - 测试结果: ✅ MSVC 16/16 通过, GCC 16/16 通过
+   - 测试数量: 32 个
+   - 测试结果: ✅ MSVC 32/32 通过, GCC 32/32 通过
 
 ===========================================
 
@@ -77,8 +77,8 @@ GCC:
 | 测试项 | MSVC | GCC |
 |--------|------|-----|
 | smart_ptr.h      | 7/7 ✅ | 7/7 ✅ |
-| smart_ptr_mt.h   | 16/16 ✅ | 16/16 ✅ |
-| **总计**         | **23/23 ✅** | **23/23 ✅** |
+| smart_ptr_mt.h   | 32/32 ✅ | 32/32 ✅ |
+| **总计**         | **39/39 ✅** | **39/39 ✅** |
 
 ===========================================
 
@@ -113,7 +113,7 @@ GCC:
 
 1. 快速单元测试（推荐用于快速验证）
    test_smart_ptr_msvc.bat      - smart_ptr.h (7 个测试)
-   test_smart_ptr_mt_msvc.bat   - smart_ptr_mt.h (16 个测试)
+   test_smart_ptr_mt_msvc.bat   - smart_ptr_mt.h (32 个测试)
 
 2. 完整功能测试（包括 demo 和多线程测试）
    test_msvc.bat                - MSVC 版本

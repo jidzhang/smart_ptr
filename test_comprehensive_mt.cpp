@@ -232,10 +232,23 @@ int test_weak_ptr_copy_assignment()
 	shared_ptr<int> sp1(new int(111));
 	weak_ptr<int> wp1(sp1);
 	weak_ptr<int> wp2;
-	wp2 = wp1;  // Copy assignment
+	wp2 = wp1;  // Copy assignment from weak_ptr
 	if (wp2.expired()) return 0;  // Should not be expired
 	shared_ptr<int> sp2 = wp2.lock();
 	if (sp2.get() == 0 || *sp2 != 111) return 0;
+	return 1;
+}
+
+int test_weak_ptr_from_shared_assignment()
+{
+	shared_ptr<int> sp(new int(777));
+	weak_ptr<int> wp;
+	wp = sp;  // Assign shared_ptr to weak_ptr
+	if (wp.expired()) return 0;
+	shared_ptr<int> sp2 = wp.lock();
+	if (sp2.get() == 0) return 0;
+	if (*sp2 != 777) return 0;
+	if (sp.use_count() != 2) return 0;  // sp and sp2 both own
 	return 1;
 }
 
@@ -306,6 +319,70 @@ int test_unique_ptr_unique()
 	up2.reset(up.release());  // Transfer ownership
 	if (up.get() != 0) return 0;  // up should now be empty
 	if (!up2.unique()) return 0;  // up2 should be unique
+	return 1;
+}
+
+int test_shared_ptr_unique()
+{
+	shared_ptr<int> sp(new int(456));
+	if (!sp.unique()) return 0;  // Should be unique (use_count == 1)
+	shared_ptr<int> sp2 = sp;
+	if (sp.unique()) return 0;   // Should NOT be unique (use_count == 2)
+	if (sp2.unique()) return 0;  // Should NOT be unique (use_count == 2)
+	sp2.reset();
+	if (!sp.unique()) return 0;  // Should be unique again (use_count == 1)
+	return 1;
+}
+
+int test_shared_array_basic()
+{
+	shared_array<int> arr(new int[5]);
+	if (arr.get() == 0) return 0;
+	// Initialize and verify array elements
+	for (int i = 0; i < 5; i++) {
+		arr[i] = i * 10;
+	}
+	for (int i = 0; i < 5; i++) {
+		if (arr[i] != i * 10) return 0;
+	}
+	if (arr.use_count() != 1) return 0;
+	return 1;
+}
+
+int test_shared_array_copy()
+{
+	shared_array<int> arr1(new int[3]);
+	arr1[0] = 100;
+	arr1[1] = 200;
+	arr1[2] = 300;
+
+	shared_array<int> arr2 = arr1;  // Copy shares ownership
+	if (arr1.use_count() != 2) return 0;
+	if (arr2.use_count() != 2) return 0;
+
+	// Modify through arr2 should affect arr1
+	arr2[1] = 999;
+	if (arr1[1] != 999) return 0;
+
+	arr2.reset();
+	if (arr1.use_count() != 1) return 0;
+	return 1;
+}
+
+int test_shared_array_swap()
+{
+	shared_array<int> arr1(new int[2]);
+	arr1[0] = 1;
+	arr1[1] = 2;
+
+	shared_array<int> arr2(new int[2]);
+	arr2[0] = 10;
+	arr2[1] = 20;
+
+	arr1.swap(arr2);
+
+	if (arr1[0] != 10 || arr1[1] != 20) return 0;
+	if (arr2[0] != 1 || arr2[1] != 2) return 0;
 	return 1;
 }
 
@@ -419,11 +496,16 @@ int main()
 		// New tests for complete coverage
 		{ test_weak_ptr_default_construct, "weak_ptr default construct" },
 		{ test_weak_ptr_copy_assignment, "weak_ptr copy assignment" },
+		{ test_weak_ptr_from_shared_assignment, "weak_ptr assign from shared_ptr" },
 		{ test_weak_ptr_reset, "weak_ptr reset" },
 		{ test_weak_ptr_use_count, "weak_ptr use_count" },
 		{ test_unique_ptr_default_construct, "unique_ptr default construct" },
 		{ test_unique_ptr_reset_with_new, "unique_ptr reset with new pointer" },
 		{ test_unique_ptr_unique, "unique_ptr unique()" },
+		{ test_shared_ptr_unique, "shared_ptr unique()" },
+		{ test_shared_array_basic, "shared_array basic operations" },
+		{ test_shared_array_copy, "shared_array copy semantics" },
+		{ test_shared_array_swap, "shared_array swap" },
 		{ test_shared_ptr_get, "shared_ptr get()" },
 		{ test_shared_ptr_dereference, "shared_ptr operator* and operator->" },
 		{ test_shared_ptr_from_weak, "shared_ptr construct from weak_ptr" },

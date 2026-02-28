@@ -98,6 +98,30 @@ void DemoSharedPtr()
         sp4.get()->Show();
     }
 
+    // 7. swap operation
+    printf("\n--- 7. swap operation ---\n");
+    smart_ptr::shared_ptr<TestObject> sp5(new TestObject(5));
+    smart_ptr::shared_ptr<TestObject> sp6(new TestObject(6));
+    printf("Before swap: sp5 id=%d, sp6 id=%d\n", sp5->GetId(), sp6->GetId());
+    sp5.swap(sp6);
+    printf("After swap: sp5 id=%d, sp6 id=%d\n", sp5->GetId(), sp6->GetId());
+
+    // 8. Comparison operators
+    printf("\n--- 8. Comparison operators ---\n");
+    smart_ptr::shared_ptr<TestObject> sp7 = sp4;
+    smart_ptr::shared_ptr<TestObject> sp8(new TestObject(8));
+    printf("sp4 == sp7: %s\n", (sp4 == sp7) ? "true" : "false");
+    printf("sp4 != sp8: %s\n", (sp4 != sp8) ? "true" : "false");
+
+    // 9. nullptr comparison
+    printf("\n--- 9. nullptr comparison ---\n");
+    smart_ptr::shared_ptr<TestObject> empty;
+    printf("empty == 0: %s\n", (empty == 0) ? "true" : "false");
+    printf("sp4 != 0: %s\n", (sp4 != 0) ? "true" : "false");
+    if (!empty) {
+        printf("!empty is true (empty pointer is falsy)\n");
+    }
+
     printf("\n--- shared_ptr demo end ---\n");
 }
 
@@ -125,19 +149,32 @@ void DemoWeakPtr()
         printf("After lock, use_count: %d\n", sp2.use_count());
     }
 
-    // 4. After shared_ptr destroyed
-    printf("\n--- 4. After shared_ptr destroyed ---\n");
+    // 4. use_count() for weak_ptr
+    printf("\n--- 4. weak_ptr use_count ---\n");
+    printf("wp.use_count(): %d\n", wp.use_count());
+
+    // 5. After shared_ptr destroyed
+    printf("\n--- 5. After shared_ptr destroyed ---\n");
     sp.reset();
     sp2.reset();
     printf("After reset all shared_ptr, wp.expired(): %s\n", wp.expired() ? "true" : "false");
 
-    // 5. Try lock expired weak_ptr
-    printf("\n--- 5. Lock expired weak_ptr ---\n");
+    // 6. Try lock expired weak_ptr
+    printf("\n--- 6. Lock expired weak_ptr ---\n");
     smart_ptr::shared_ptr<TestObject> sp3 = wp.lock();
     if (!sp3.get())
     {
         printf("lock() returned empty shared_ptr as expected\n");
     }
+
+    // 7. owner_before for ordered containers
+    printf("\n--- 7. owner_before (for ordered containers) ---\n");
+    smart_ptr::shared_ptr<TestObject> sp4(new TestObject(40));
+    smart_ptr::shared_ptr<TestObject> sp5(new TestObject(50));
+    smart_ptr::weak_ptr<TestObject> wp4(sp4);
+    smart_ptr::weak_ptr<TestObject> wp5(sp5);
+    bool before = wp4.owner_before(wp5);
+    printf("wp4.owner_before(wp5): %s\n", before ? "true" : "false");
 
     printf("\n--- weak_ptr demo end ---\n");
 }
@@ -166,6 +203,27 @@ void DemoUniquePtr()
     printf("\n--- 4. Reassign ---\n");
     up1.reset(new TestObject(22));
     (*up1).Show();
+
+    // 5. release() - transfer ownership
+    printf("\n--- 5. release() - transfer ownership ---\n");
+    smart_ptr::unique_ptr<TestObject> up2(new TestObject(23));
+    TestObject* raw = up2.release();
+    printf("After release, up2.get() is %s\n", up2.get() ? "not null" : "null");
+    printf("raw pointer is %s\n", raw ? "valid" : "null");
+    delete raw;  // Manual delete required after release
+
+    // 6. swap operation
+    printf("\n--- 6. swap operation ---\n");
+    smart_ptr::unique_ptr<TestObject> up3(new TestObject(30));
+    smart_ptr::unique_ptr<TestObject> up4(new TestObject(40));
+    printf("Before swap: up3 id=%d, up4 id=%d\n", up3->GetId(), up4->GetId());
+    up3.swap(up4);
+    printf("After swap: up3 id=%d, up4 id=%d\n", up3->GetId(), up4->GetId());
+
+    // 7. unique() check
+    printf("\n--- 7. unique() check ---\n");
+    smart_ptr::unique_ptr<TestObject> up5(new TestObject(50));
+    printf("up5.unique(): %s\n", up5.unique() ? "true" : "false");
 
     printf("\n--- unique_ptr demo end ---\n");
 }
@@ -199,6 +257,16 @@ void DemoSharedArray()
     arr2[0] = 999;
     printf("After modify arr2[0], arr[0] = %d\n", arr[0]);
 
+    // 4. swap operation for shared_array
+    printf("\n--- 4. Array swap ---\n");
+    smart_ptr::shared_array<int> arr3(new int[3]);
+    arr3[0] = 100; arr3[1] = 200; arr3[2] = 300;
+    smart_ptr::shared_array<int> arr4(new int[3]);
+    arr4[0] = 10; arr4[1] = 20; arr4[2] = 30;
+    printf("Before swap: arr3[0]=%d, arr4[0]=%d\n", arr3[0], arr4[0]);
+    arr3.swap(arr4);
+    printf("After swap: arr3[0]=%d, arr4[0]=%d\n", arr3[0], arr4[0]);
+
     printf("\n--- shared_array demo end ---\n");
 }
 
@@ -220,6 +288,26 @@ void DemoMakeShared()
     sp2->Show();
 
     printf("\n--- make_shared_ptr demo end ---\n");
+}
+
+// Demo make_unique factory function
+void DemoMakeUnique()
+{
+    printf("\n========== make_unique demo ==========\n");
+
+    // 1. No argument construction
+    printf("\n--- 1. No argument construction ---\n");
+    smart_ptr::unique_ptr<TestObject> up1 =
+        smart_ptr::make_unique<TestObject>();
+    up1->Show();
+
+    // 2. With argument construction
+    printf("\n--- 2. With argument construction ---\n");
+    smart_ptr::unique_ptr<TestObject> up2 =
+        smart_ptr::make_unique<TestObject>(200);
+    up2->Show();
+
+    printf("\n--- make_unique demo end ---\n");
 }
 
 // Demo polymorphism
@@ -256,6 +344,7 @@ int main()
     DemoUniquePtr();
     DemoSharedArray();
     DemoMakeShared();
+    DemoMakeUnique();
     DemoPolymorphism();
 
     printf("\n========== All demos finished ==========\n");
