@@ -9,8 +9,8 @@
 - **smart_ptr_mt.h** - 多线程版本（带原子操作，线程安全）
 
 ### 源代码和测试文件
-- **test_comprehensive.cpp** - smart_ptr.h 单元测试（7个测试，C++98）
-- **test_comprehensive_mt.cpp** - smart_ptr_mt.h 单元测试（32个测试，C++98）
+- **test_comprehensive.cpp** - smart_ptr.h 单元测试（12个测试，C++11）
+- **test_comprehensive_mt.cpp** - smart_ptr_mt.h 单元测试（37个测试，C++11）
 - **demo.cpp** - 演示程序（使用 smart_ptr_mt.h，严格 C++98）
 - **test_smart_ptr.cpp** - catch2 框架完整测试（C++11，使用 smart_ptr_mt.h）
 - **test_thread_safety.cpp** - 多线程压力测试（C++11，使用 smart_ptr_mt.h）
@@ -36,10 +36,10 @@ run_100_gcc.sh     - GCC 100次循环压力测试
 
 **单元测试脚本（4个）：**
 ```
-test_smart_ptr_msvc.bat       - smart_ptr.h + MSVC  (7个测试)
-test_smart_ptr_gcc.bat        - smart_ptr.h + GCC   (7个测试)
-test_smart_ptr_mt_msvc.bat    - smart_ptr_mt.h + MSVC (32个测试)
-test_smart_ptr_mt_gcc.bat     - smart_ptr_mt.h + GCC   (32个测试)
+test_smart_ptr_msvc.bat       - smart_ptr.h + MSVC  (12个测试)
+test_smart_ptr_gcc.bat        - smart_ptr.h + GCC   (12个测试)
+test_smart_ptr_mt_msvc.bat   - smart_ptr_mt.h + MSVC (37个测试)
+test_smart_ptr_mt_gcc.bat    - smart_ptr_mt.h + GCC   (37个测试)
 ```
 
 **工具：**
@@ -86,12 +86,12 @@ test_gcc.bat           # 单次完整测试
 ```bash
 build_demo.bat         # MSVC
 # 或
-g++ -std=c++98 -Wall -O2 -o demo.exe demo.cpp  # GCC
+g++ -std=c++11 -Wall -O2 -o demo.exe demo.cpp  # GCC
 ```
 
 ## 📋 测试覆盖
 
-### test_comprehensive.cpp (smart_ptr.h，7个测试)
+### test_comprehensive.cpp (smart_ptr.h，12个测试)
 1. shared_ptr 基本操作
 2. shared_ptr 拷贝语义
 3. weak_ptr 过期跟踪
@@ -99,8 +99,13 @@ g++ -std=c++98 -Wall -O2 -o demo.exe demo.cpp  # GCC
 5. reset 函数
 6. swap 函数
 7. 比较运算符
+8. weak_ptr 比较运算符
+9. weak_ptr nullptr 比较
+10. shared_ptr 移动语义
+11. unique_ptr 移动语义
+12. weak_ptr 移动语义
 
-### test_comprehensive_mt.cpp (smart_ptr_mt.h，32个测试)
+### test_comprehensive_mt.cpp (smart_ptr_mt.h，37个测试)
 1-7. 基础功能（shared_ptr、weak_ptr、unique_ptr 基本操作）
 8-11. 比较运算符、operator!()、跨类型比较、owner_before()
 12-14. make_shared、make_unique、nullptr 比较
@@ -109,7 +114,9 @@ g++ -std=c++98 -Wall -O2 -o demo.exe demo.cpp  # GCC
 21-23. unique_ptr 扩展（默认构造、reset(new)、unique()）
 24-27. shared_ptr 扩展（get()、解引用、从 weak_ptr 构造、unique()）
 28-30. shared_array（基本操作、拷贝、swap）
-31-32. 弱引用赋值、指针转换
+31-32. 弱引用赋值、指针转换（static/dynamic/const）
+33-34. weak_ptr 比较运算符、nullptr 比较
+35-37. 移动语义（shared_ptr、unique_ptr、weak_ptr）
 
 ### test_smart_ptr.cpp (catch2 框架)
 - 完整的功能测试覆盖
@@ -155,6 +162,7 @@ unique_ptr.release();  // 释放所有权，返回原始指针
 - **operator!()** - `if (!sp)` 支持
 - **完整 STL 风格接口** - 支持 `==`、`!=`、`<`、`<=`、`>`、`>=`
 - **nullptr 兼容** - 通过宏自动适配 nullptr/0
+- **移动语义** - C++11+ 支持移动构造和移动赋值
 
 ### 线程安全（smart_ptr_mt.h）
 - 使用原子操作（Interlocked API 或 __sync builtins）
@@ -174,8 +182,8 @@ unique_ptr.release();  // 释放所有权，返回原始指针
 
 | 编译器 | 版本 | smart_ptr.h | smart_ptr_mt.h |
 |--------|------|-------------|---------------|
-| MSVC   | VS2005+ | ✅ 7/7 通过 | ✅ 32/32 通过 |
-| GCC    | 4.x+   | ✅ 7/7 通过 | ✅ 32/32 通过 |
+| MSVC   | VS2005+ | ✅ 12/12 通过 | ✅ 37/37 通过 |
+| GCC    | 4.x+   | ✅ 12/12 通过 | ✅ 37/37 通过 |
 | Clang  | 3.x+   | ✅ 兼容 | ✅ 兼容 |
 
 ## 🔧 手动编译示例
@@ -183,10 +191,10 @@ unique_ptr.release();  // 释放所有权，返回原始指针
 ### GCC
 ```bash
 # 编译单元测试
-g++ -std=c++98 -Wall -O2 -o test.exe test_comprehensive.cpp
+g++ -std=c++11 -Wall -O2 -o test.exe test_comprehensive.cpp
 
 # 编译 demo
-g++ -std=c++98 -Wall -O2 -o demo.exe demo.cpp
+g++ -std=c++11 -Wall -O2 -o demo.exe demo.cpp
 ```
 
 ### MSVC
@@ -206,7 +214,14 @@ clean.bat
 
 ## 📌 版本历史
 
-### v1.2 (当前版本)
+### v1.3 (当前版本)
+- ✅ 添加移动语义（shared_ptr、weak_ptr、unique_ptr）
+- ✅ 添加 weak_ptr 比较运算符（==、!=、nullptr 比较）
+- ✅ 添加单元测试覆盖移动语义和 weak_ptr 比较
+- ✅ GCC 测试改用 C++11 标准（提升测试覆盖度）
+- ✅ 优化注释（保留关键线程安全说明）
+
+### v1.2
 - ✅ 修复 release() 函数的 use-after-free 问题
 - ✅ 添加 Safe Bool Idiom（C++03 兼容）
 - ✅ 添加 operator!() 否定运算符
