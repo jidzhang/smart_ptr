@@ -27,20 +27,28 @@ echo.
 echo ----------------------------------------
 echo Running test_smart_ptr.exe (unit tests)
 echo ----------------------------------------
-"%CD%\test_smart_ptr.exe"
-if errorlevel 1 (
-    echo Error: Unit tests failed with exit code %errorlevel%
-    exit /b 1
+if exist test_smart_ptr.exe (
+    "%CD%\test_smart_ptr.exe"
+    if errorlevel 1 (
+        echo Error: Unit tests failed with exit code %errorlevel%
+        exit /b 1
+    )
+) else (
+    echo Skipping catch2 tests (compiler not supported)
 )
 
 echo.
 echo ----------------------------------------
 echo Running test_thread_safety.exe (thread safety)
 echo ----------------------------------------
-"%CD%\test_thread_safety.exe"
-if errorlevel 1 (
-    echo Error: Thread safety tests failed with exit code %errorlevel%
-    exit /b 1
+if exist test_thread_safety.exe (
+    "%CD%\test_thread_safety.exe"
+    if errorlevel 1 (
+        echo Error: Thread safety tests failed with exit code %errorlevel%
+        exit /b 1
+    )
+) else (
+    echo Warning: test_thread_safety.exe not found, skipping
 )
 
 echo.

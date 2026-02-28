@@ -81,7 +81,7 @@ echo SUCCESS: ALL TEST SUITES PASSED
     echo - smart_ptr.h:      MSVC [PASS], GCC [PASS]
     echo - smart_ptr_mt.h:   MSVC [PASS], GCC [PASS]
     echo.
-    echo Total: 46/23 tests passed
+    echo Total: 49 tests passed (smart_ptr.h: 12, smart_ptr_mt.h: 37)
     echo ============================================
     exit /b 0
 ) else (

@@ -19,4 +19,5 @@ echo ============================================
 echo Build successful!
 echo Run: demo.exe
 echo ============================================
+"%CD%\demo.exe"
 exit /b 0

@@ -46,7 +46,7 @@
 #endif
 
 // C++11 feature detection
-#if __cplusplus >= 201103L || _MSC_VER >= 1800
+#if __cplusplus >= 201103L || _MSC_VER >= 1900
 	#define SMART_PTR_NULLPTR nullptr
 	#define SMART_PTR_NOEXCEPT noexcept
 	#define SMART_PTR_EXPLICIT_BOOL explicit operator bool
@@ -254,7 +254,7 @@ namespace smart_ptr
 
 		T& operator*() const SMART_PTR_NOEXCEPT { return *m_ptr; }
 
-#if __cplusplus >= 201103L || _MSC_VER >= 1800
+#if __cplusplus >= 201103L || _MSC_VER >= 1900
 		// C++11: explicit bool conversion for conditional statements
 		SMART_PTR_EXPLICIT_BOOL() const SMART_PTR_NOEXCEPT { return m_ptr != 0; }
 #else
@@ -921,7 +921,7 @@ namespace smart_ptr
 		}
 #endif
 
-#if __cplusplus >= 201103L || _MSC_VER >= 1800
+#if __cplusplus >= 201103L || _MSC_VER >= 1900
 		// C++11: explicit bool conversion for conditional statements
 		SMART_PTR_EXPLICIT_BOOL() const SMART_PTR_NOEXCEPT { return m_ptr != 0; }
 #else
