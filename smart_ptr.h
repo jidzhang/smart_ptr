@@ -552,6 +552,32 @@ namespace smart_ptr
 		T* get() const SMART_PTR_NOEXCEPT;
 	};
 
+	// Comparison operators for weak_ptr
+	template <class T, typename mem_mgr>
+	bool operator==(const weak_ptr<T, mem_mgr>& lhs, const weak_ptr<T, mem_mgr>& rhs)
+	{
+		return lhs.lock().get() == rhs.lock().get();
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(const weak_ptr<T, mem_mgr>& lhs, const weak_ptr<T, mem_mgr>& rhs)
+	{
+		return !(lhs == rhs);
+	}
+
+	// Comparison with nullptr
+	template <class T, typename mem_mgr>
+	bool operator==(const weak_ptr<T, mem_mgr>& lhs, int /*null*/)
+	{
+		return lhs.lock().get() == SMART_PTR_NULLPTR;
+	}
+
+	template <class T, typename mem_mgr>
+	bool operator!=(const weak_ptr<T, mem_mgr>& lhs, int /*null*/)
+	{
+		return lhs.lock().get() != SMART_PTR_NULLPTR;
+	}
+
 	// swap for weak_ptr
 	template <class T, typename mem_mgr>
 	void swap(weak_ptr<T, mem_mgr>& lhs, weak_ptr<T, mem_mgr>& rhs)

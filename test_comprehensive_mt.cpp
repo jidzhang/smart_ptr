@@ -467,6 +467,35 @@ int test_pointer_casts()
 	return 1;
 }
 
+int test_weak_ptr_comparison_operators()
+{
+	shared_ptr<int> sp1(new int(100));
+	shared_ptr<int> sp2(new int(200));
+	weak_ptr<int> wp1(sp1);
+	weak_ptr<int> wp2(sp1);
+	weak_ptr<int> wp3(sp2);
+
+	if (!(wp1 == wp2)) return 0;  // Same object, should be equal
+	if (wp1 == wp3) return 0;     // Different objects, should not be equal
+	if (!(wp1 != wp3)) return 0;   // Should not be equal
+
+	return 1;
+}
+
+int test_weak_ptr_nullptr_comparison()
+{
+	shared_ptr<int> sp(new int(100));
+	weak_ptr<int> wp1(sp);
+	weak_ptr<int> wp2;
+
+	if (wp1 == 0) return 0;   // wp1 is valid, should not equal nullptr
+	if (!(wp2 == 0)) return 0;  // wp2 is empty, should equal nullptr
+	if (!(wp1 != 0)) return 0;  // wp1 is valid, should not equal nullptr
+	if (wp2 != 0) return 0;   // wp2 is empty, should equal nullptr
+
+	return 1;
+}
+
 int main()
 {
 	// setvbuf(stdout, NULL, _IONBF, 0);  // Disable output buffering - removed for GCC compatibility
@@ -509,7 +538,9 @@ int main()
 		{ test_shared_ptr_get, "shared_ptr get()" },
 		{ test_shared_ptr_dereference, "shared_ptr operator* and operator->" },
 		{ test_shared_ptr_from_weak, "shared_ptr construct from weak_ptr" },
-		{ test_pointer_casts, "pointer casts (static/dynamic/const)" }
+		{ test_pointer_casts, "pointer casts (static/dynamic/const)" },
+		{ test_weak_ptr_comparison_operators, "weak_ptr comparison operators" },
+		{ test_weak_ptr_nullptr_comparison, "weak_ptr nullptr comparison" }
 	};
 
 	const int num_tests = sizeof(tests) / sizeof(tests[0]);

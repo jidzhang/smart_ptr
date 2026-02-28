@@ -75,6 +75,35 @@ int test_comparison_operators()
     return (sp1 == sp2 && sp1 != sp3) ? 1 : 0;
 }
 
+int test_weak_ptr_comparison_operators()
+{
+    shared_ptr<int> sp1(new int(100));
+    shared_ptr<int> sp2(new int(200));
+    weak_ptr<int> wp1(sp1);
+    weak_ptr<int> wp2(sp1);
+    weak_ptr<int> wp3(sp2);
+
+    if (!(wp1 == wp2)) return 0;  // Same object, should be equal
+    if (wp1 == wp3) return 0;     // Different objects, should not be equal
+    if (!(wp1 != wp3)) return 0;  // Should not be equal
+
+    return 1;
+}
+
+int test_weak_ptr_nullptr_comparison()
+{
+    shared_ptr<int> sp(new int(100));
+    weak_ptr<int> wp1(sp);
+    weak_ptr<int> wp2;
+
+    if (wp1 == 0) return 0;   // wp1 is valid, should not equal nullptr
+    if (!(wp2 == 0)) return 0;  // wp2 is empty, should equal nullptr
+    if (!(wp1 != 0)) return 0;  // wp1 is valid, should not equal nullptr
+    if (wp2 != 0) return 0;   // wp2 is empty, should equal nullptr
+
+    return 1;
+}
+
 int main()
 {
     printf("============================================\n");
@@ -89,10 +118,12 @@ int main()
         { test_unique_ptr_basic, "unique_ptr basic operations" },
         { test_reset_function, "reset function" },
         { test_swap_function, "swap function" },
-        { test_comparison_operators, "comparison operators" }
+        { test_comparison_operators, "comparison operators" },
+        { test_weak_ptr_comparison_operators, "weak_ptr comparison operators" },
+        { test_weak_ptr_nullptr_comparison, "weak_ptr nullptr comparison" }
     };
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 9; i++) {
         test_count++;
         printf("[Test %d] %s\n", test_count, tests[i].name);
         if (tests[i].func()) {
