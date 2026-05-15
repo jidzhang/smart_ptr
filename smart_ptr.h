@@ -1,26 +1,6 @@
-/*
- * smart_ptr - simple reference counted pointer.
- *
- * Copyright (c) 2013, oddman
- * https://github.com/oddman2017/SmartPointer/
- *
- * This is a non-intrusive implementation that allocates an additional
- * int and pointer for every counted object.
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
+// smart_ptr - simple reference counted pointer.
+// Copyright (c) 2013, oddman (https://github.com/oddman2017/SmartPointer/)
+// ISC License - see LICENSE file for details.
 
 #ifndef __SMART_PTR_H__
 #define __SMART_PTR_H__
@@ -113,15 +93,18 @@ namespace smart_ptr
 	class base_ptr
 	{
 	public:
-		explicit base_ptr(T* p = 0) : m_counter(0), m_ptr(p)
+		explicit base_ptr(T* p = 0) : m_counter(0), m_ptr(0)
 		{
-			if (m_ptr)
+			if (p)
 			{
 				if (is_strong)
 				{
-					// allocate a new ref_count
+					// allocate a new ref_count before taking ownership of p;
+					// if new throws, m_ptr is still 0 and p will not be
+					// double-deleted by any partially-constructed object.
 					m_counter = new ref_count;
 				}
+				m_ptr = p;
 			}
 		}
 
@@ -248,18 +231,26 @@ namespace smart_ptr
 		template <class Q, bool b, typename mem_mgr2>
 		void acquire(const base_ptr<Q, b, mem_mgr2>& rhs) SMART_PTR_NOEXCEPT
 		{
-			if (rhs.m_counter && rhs.m_counter->get_ref_count())
+			if (rhs.m_counter)
 			{
-				m_counter = rhs.m_counter;
 				if (is_strong)
 				{
-					m_counter->inc_ref();
+					// strong: only acquire if managed object is still alive
+					if (rhs.m_counter->get_ref_count())
+					{
+						m_counter = rhs.m_counter;
+						m_counter->inc_ref();
+						m_ptr = static_cast<T*>(rhs.m_ptr);
+					}
 				}
 				else
 				{
+					// weak: always acquire as long as counter exists,
+					// even if the managed object has been destroyed
+					m_counter = rhs.m_counter;
 					m_counter->inc_weak_ref();
+					m_ptr = static_cast<T*>(rhs.m_ptr);
 				}
-				m_ptr = static_cast<T*>(rhs.m_ptr);
 			}
 		}
 
@@ -268,29 +259,28 @@ namespace smart_ptr
 		{
 			if (m_counter)
 			{
-				bool should_delete = false;
+				// Save counter to local var before potential delete,
+				// prevents use-after-free warnings with -O2
+				ref_count* counter = m_counter;
+				m_counter = 0;
+
 				if (is_strong)
 				{
-					if (0 == m_counter->dec_ref())
+					if (0 == counter->dec_ref())
 					{
 						mem_mgr::deallocate(m_ptr);
 					}
 				}
 				else
 				{
-					m_counter->dec_weak_ref();
+					counter->dec_weak_ref();
 				}
-				should_delete = (0 == m_counter->get_ref_count() && 0 == m_counter->get_weak_ref_count());
-				if (should_delete)
+				if (0 == counter->get_ref_count() && 0 == counter->get_weak_ref_count())
 				{
-					delete m_counter;
-					m_counter = 0;
+					delete counter;
 				}
 			}
-			if (m_ptr)
-			{
-				m_ptr = 0;
-			}
+			m_ptr = 0;
 		}
 #if !defined(_MSC_VER) || _MSC_VER >= 1300
 		template <class Q, bool b, typename mem_mgr2>
@@ -549,11 +539,18 @@ namespace smart_ptr
 		lhs.swap(rhs);
 	}
 
-	// pointer casts (STL style)
+	// pointer casts (STL style) — share ref_count to avoid double-free
 	template <class T, class Q, typename mem_mgr>
 	shared_ptr<T, mem_mgr> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		return shared_ptr<T, mem_mgr>(static_cast<T*>(sp.get()));
+		shared_ptr<T, mem_mgr> result;
+		result.m_counter = sp.m_counter;
+		result.m_ptr = static_cast<T*>(sp.get());
+		if (result.m_counter)
+		{
+			result.m_counter->inc_ref();
+		}
+		return result;
 	}
 
 	template <class T, class Q, typename mem_mgr>
@@ -561,20 +558,43 @@ namespace smart_ptr
 	{
 		T* p = dynamic_cast<T*>(sp.get());
 		if (p)
-			return shared_ptr<T, mem_mgr>(p);
+		{
+			shared_ptr<T, mem_mgr> result;
+			result.m_counter = sp.m_counter;
+			result.m_ptr = p;
+			if (result.m_counter)
+			{
+				result.m_counter->inc_ref();
+			}
+			return result;
+		}
 		return shared_ptr<T, mem_mgr>();
 	}
 
 	template <class T, class Q, typename mem_mgr>
 	shared_ptr<T, mem_mgr> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		return shared_ptr<T, mem_mgr>(const_cast<T*>(sp.get()));
+		shared_ptr<T, mem_mgr> result;
+		result.m_counter = sp.m_counter;
+		result.m_ptr = const_cast<T*>(sp.get());
+		if (result.m_counter)
+		{
+			result.m_counter->inc_ref();
+		}
+		return result;
 	}
 
 	template <class T, class Q, typename mem_mgr>
 	shared_ptr<T, mem_mgr> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		return shared_ptr<T, mem_mgr>(reinterpret_cast<T*>(sp.get()));
+		shared_ptr<T, mem_mgr> result;
+		result.m_counter = sp.m_counter;
+		result.m_ptr = reinterpret_cast<T*>(sp.get());
+		if (result.m_counter)
+		{
+			result.m_counter->inc_ref();
+		}
+		return result;
 	}
 
 	template <class T, typename mem_mgr = std_mem_mgr<T> >

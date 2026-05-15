@@ -1,26 +1,6 @@
-/*
- * smart_ptr - simple reference counted pointer (Multi-threaded version)
- *
- * Copyright (c) 2013, oddman
- * https://github.com/oddman2017/SmartPointer/
- *
- * This is a non-intrusive implementation that allocates an additional
- * int and pointer for every counted object.
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
+// smart_ptr_mt - simple reference counted pointer (multi-threaded version).
+// Copyright (c) 2013, oddman (https://github.com/oddman2017/SmartPointer/)
+// ISC License - see LICENSE file for details.
 
 #ifndef __SMART_PTR_H__
 #define __SMART_PTR_H__
@@ -41,8 +21,7 @@
 	// These provide full memory barrier and are available on both GCC and Clang
 
 #else
-	// Unknown platform: atomic operations NOT available, fallback to non-thread-safe
-	#define SMART_PTR_NO_ATOMIC 1
+	#error "Unsupported platform: no atomic operations available"
 #endif
 
 // C++11 feature detection
@@ -222,15 +201,18 @@ namespace smart_ptr
 	class base_ptr
 	{
 	public:
-		explicit base_ptr(T* p = 0) : m_counter(0), m_ptr(p)
+		explicit base_ptr(T* p = 0) : m_counter(0), m_ptr(0)
 		{
-			if (m_ptr)
+			if (p)
 			{
 				if (is_strong)
 				{
-					// allocate a new ref_count
+					// allocate a new ref_count before taking ownership of p;
+					// if new throws, m_ptr is still 0 and p will not be
+					// double-deleted by any partially-constructed object.
 					m_counter = new ref_count;
 				}
+				m_ptr = p;
 			}
 		}
 
@@ -661,11 +643,18 @@ namespace smart_ptr
 		lhs.swap(rhs);
 	}
 
-	// pointer casts (STL style)
+	// pointer casts (STL style) — share ref_count to avoid double-free
 	template <class T, class Q, typename mem_mgr>
 	shared_ptr<T, mem_mgr> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		return shared_ptr<T, mem_mgr>(static_cast<T*>(sp.get()));
+		shared_ptr<T, mem_mgr> result;
+		result.m_counter = sp.m_counter;
+		result.m_ptr = static_cast<T*>(sp.get());
+		if (result.m_counter)
+		{
+			result.m_counter->inc_ref();
+		}
+		return result;
 	}
 
 	template <class T, class Q, typename mem_mgr>
@@ -673,20 +662,43 @@ namespace smart_ptr
 	{
 		T* p = dynamic_cast<T*>(sp.get());
 		if (p)
-			return shared_ptr<T, mem_mgr>(p);
+		{
+			shared_ptr<T, mem_mgr> result;
+			result.m_counter = sp.m_counter;
+			result.m_ptr = p;
+			if (result.m_counter)
+			{
+				result.m_counter->inc_ref();
+			}
+			return result;
+		}
 		return shared_ptr<T, mem_mgr>();
 	}
 
 	template <class T, class Q, typename mem_mgr>
 	shared_ptr<T, mem_mgr> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		return shared_ptr<T, mem_mgr>(const_cast<T*>(sp.get()));
+		shared_ptr<T, mem_mgr> result;
+		result.m_counter = sp.m_counter;
+		result.m_ptr = const_cast<T*>(sp.get());
+		if (result.m_counter)
+		{
+			result.m_counter->inc_ref();
+		}
+		return result;
 	}
 
 	template <class T, class Q, typename mem_mgr>
 	shared_ptr<T, mem_mgr> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		return shared_ptr<T, mem_mgr>(reinterpret_cast<T*>(sp.get()));
+		shared_ptr<T, mem_mgr> result;
+		result.m_counter = sp.m_counter;
+		result.m_ptr = reinterpret_cast<T*>(sp.get());
+		if (result.m_counter)
+		{
+			result.m_counter->inc_ref();
+		}
+		return result;
 	}
 
 	template <class T, typename mem_mgr = std_mem_mgr<T> >

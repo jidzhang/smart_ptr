@@ -187,7 +187,7 @@ int test_weak_ptr_comparison_thread_safety()
     return 1;
 }
 
-#if __cplusplus >= 201103L || _MSC_VER >= 1800
+#if __cplusplus >= 201103L || _MSC_VER >= 1900
 int test_shared_ptr_move()
 {
     shared_ptr<int> sp1(new int(100));

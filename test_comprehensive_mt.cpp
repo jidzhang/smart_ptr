@@ -135,6 +135,8 @@ int test_static_pointer_cast()
 	shared_ptr<int> sp2 = static_pointer_cast<int>(sp);
 	if (sp2.get() != sp.get()) return 0;
 	if (*sp2 != 42) return 0;
+	if (sp.use_count() != 2) return 0;   // must share ref_count
+	if (sp2.use_count() != 2) return 0;
 	return 1;
 }
 
@@ -143,14 +145,18 @@ int test_dynamic_pointer_cast()
 	// Same-type cast to avoid cross-type mem_mgr issues
 	shared_ptr<Base> base(new Base(42));
 	shared_ptr<Base> base2 = dynamic_pointer_cast<Base>(base);
-	return (base2.get() == base.get()) ? 1 : 0;
+	if (base2.get() != base.get()) return 0;
+	if (base.use_count() != 2) return 0;   // must share ref_count
+	return 1;
 }
 
 int test_const_pointer_cast()
 {
-	// Simplified test
 	shared_ptr<int> sp(new int(42));
-	return (sp.get() != 0) ? 1 : 0;
+	shared_ptr<int> sp2 = const_pointer_cast<int>(sp);
+	if (sp2.get() != sp.get()) return 0;
+	if (sp.use_count() != 2) return 0;   // must share ref_count
+	return 1;
 }
 
 int test_weak_ptr_owner_before()
@@ -259,20 +265,16 @@ int test_weak_ptr_reset()
 	weak_ptr<int> wp(sp);
 	if (wp.expired()) return 0;
 
-	// Note: Current implementation has a limitation where reset() doesn't
-	// properly clear the weak_ptr. For now, we test that we can call reset()
-	// without crashing and that the shared_ptr is still valid.
-	wp.reset();  // Reset weak_ptr
+	wp.reset();  // Release weak reference
 
 	// Original shared_ptr should still be valid
 	if (sp.get() == 0 || *sp != 222) return 0;
 	if (sp.use_count() != 1) return 0;
 
-	// After reset, we should still be able to lock (due to implementation limitation)
-	// In a correct implementation, this would fail
+	// After reset, weak_ptr should be cleared
+	if (!wp.expired()) return 0;
 	shared_ptr<int> sp2 = wp.lock();
-	// The current implementation may still allow locking after reset
-	// This is a known limitation
+	if (sp2.get() != 0) return 0;  // lock should return empty
 
 	return 1;
 }
@@ -579,7 +581,7 @@ int test_weak_ptr_comparison_thread_safety()
 	return 1;
 }
 
-#if __cplusplus >= 201103L || _MSC_VER >= 1800
+#if __cplusplus >= 201103L || _MSC_VER >= 1900
 int test_shared_ptr_move()
 {
 	shared_ptr<int> sp1(new int(100));
