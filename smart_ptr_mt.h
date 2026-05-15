@@ -45,7 +45,7 @@ namespace smart_ptr
 	class ref_count
 	{
 	public:
-		ref_count() : m_strong_ref_count(1), m_weak_ref_count(0)
+		ref_count() : m_strong_ref_count(1), m_weak_ref_count(1)
 		{
 		}
 
@@ -373,15 +373,18 @@ namespace smart_ptr
 					if (0 == counter->dec_ref())
 					{
 						mem_mgr::deallocate(m_ptr);
+						if (0 == counter->dec_weak_ref())
+						{
+							delete counter;
+						}
 					}
 				}
 				else
 				{
-					counter->dec_weak_ref();
-				}
-				if (0 == counter->get_ref_count() && 0 == counter->get_weak_ref_count())
-				{
-					delete counter;
+					if (0 == counter->dec_weak_ref())
+					{
+						delete counter;
+					}
 				}
 			}
 			m_ptr = 0;
