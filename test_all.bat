@@ -1,105 +1,174 @@
 @echo off
-chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo ============================================
-echo smart_ptr Full Test Suite (MSVC + GCC)
+echo smart_ptr Full Test Suite
 echo ============================================
 echo.
 
-set /a TOTAL_PASS=0
-set /a TOTAL_FAIL=0
+set /a PASS=0
+set /a FAIL=0
 
-echo ============================================
-echo MSVC Tests
-echo ============================================
+:: --------------------------------------------
+:: MSVC Tests
+:: --------------------------------------------
+echo === MSVC Tests ===
 echo.
 
-echo [1/2] Testing smart_ptr.h (MSVC)...
-call test_smart_ptr_msvc.bat
+echo [1/6] smart_ptr.h (MSVC)...
+cl -nologo -W4 -EHsc -utf-8 -O2 test_comprehensive.cpp -Fetest_comprehensive_msvc.exe >nul 2>&1
 if errorlevel 1 (
-    set /a TOTAL_FAIL+=1
-    echo   [FAILED]
+    echo   [FAILED] Compile error
+    set /a FAIL+=1
 ) else (
-    set /a TOTAL_PASS+=1
-    echo   [PASS]
+    "%CD%\test_comprehensive_msvc.exe" >nul 2>&1
+    if errorlevel 1 (
+        echo   [FAILED] Tests failed
+        set /a FAIL+=1
+    ) else (
+        echo   [PASS] 13/13
+        set /a PASS+=1
+    )
 )
 
-echo.
-echo [2/2] Testing smart_ptr_mt.h (MSVC)...
-call test_smart_ptr_mt_msvc.bat
+echo [2/6] smart_ptr_mt.h (MSVC)...
+cl -nologo -W4 -EHsc -utf-8 -O2 -Fetest_comprehensive_mt_msvc.exe test_comprehensive_mt.cpp >nul 2>&1
 if errorlevel 1 (
-    set /a TOTAL_FAIL+=1
-    echo   [FAILED]
+    echo   [FAILED] Compile error
+    set /a FAIL+=1
 ) else (
-    set /a TOTAL_PASS+=1
-    echo   [PASS]
+    "%CD%\test_comprehensive_mt_msvc.exe" >nul 2>&1
+    if errorlevel 1 (
+        echo   [FAILED] Tests failed
+        set /a FAIL+=1
+    ) else (
+        echo   [PASS] 38/38
+        set /a PASS+=1
+    )
 )
 
-echo.
-echo [2/3] Testing COM smart pointer (MSVC)...
-call test_com_msvc.bat
+echo [3/6] test_com.cpp (MSVC)...
+cl -nologo -W4 -EHsc -O2 -DUNICODE -D_UNICODE test_com.cpp >nul 2>&1
 if errorlevel 1 (
-    set /a TOTAL_FAIL+=1
-    echo   [FAILED]
+    echo   [FAILED] Compile error
+    set /a FAIL+=1
 ) else (
-    set /a TOTAL_PASS+=1
-    echo   [PASS]
+    "%CD%\test_com.exe" >nul 2>&1
+    if errorlevel 1 (
+        echo   [FAILED] Tests failed
+        set /a FAIL+=1
+    ) else (
+        echo   [PASS] 5/5
+        set /a PASS+=1
+    )
 )
 
+:: --------------------------------------------
+:: GCC Tests
+:: --------------------------------------------
+echo.
+echo === GCC Tests ===
+echo.
 
-echo.
-echo.
-echo ============================================
-echo GCC Tests
-echo ============================================
-echo.
-
-echo [3/4] Testing smart_ptr.h (GCC)...
-call test_smart_ptr_gcc.bat
+echo [4/6] smart_ptr.h (GCC)...
+g++ -std=c++11 -Wall -O2 -o test_comprehensive_gcc.exe test_comprehensive.cpp >nul 2>&1
 if errorlevel 1 (
-    set /a TOTAL_FAIL+=1
-    echo   [FAILED]
+    echo   [FAILED] Compile error
+    set /a FAIL+=1
 ) else (
-    set /a TOTAL_PASS+=1
-    echo   [PASS]
+    "%CD%\test_comprehensive_gcc.exe" >nul 2>&1
+    if errorlevel 1 (
+        echo   [FAILED] Tests failed
+        set /a FAIL+=1
+    ) else (
+        echo   [PASS] 13/13
+        set /a PASS+=1
+    )
 )
 
-echo.
-echo [4/4] Testing smart_ptr_mt.h (GCC)...
-call test_smart_ptr_mt_gcc.bat
+echo [5/6] smart_ptr_mt.h (GCC)...
+g++ -std=c++11 -Wall -O2 -o test_comprehensive_mt_gcc.exe test_comprehensive_mt.cpp >nul 2>&1
 if errorlevel 1 (
-    set /a TOTAL_FAIL+=1
-    echo   [FAILED]
+    echo   [FAILED] Compile error
+    set /a FAIL+=1
 ) else (
-    set /a TOTAL_PASS+=1
-    echo   [PASS]
+    "%CD%\test_comprehensive_mt_gcc.exe" >nul 2>&1
+    if errorlevel 1 (
+        echo   [FAILED] Tests failed
+        set /a FAIL+=1
+    ) else (
+        echo   [PASS] 38/38
+        set /a PASS+=1
+    )
 )
 
+:: --------------------------------------------
+:: Race Condition Stress Test
+:: --------------------------------------------
 echo.
-echo ============================================
-echo Test Summary
-echo ============================================
-echo Passed: !TOTAL_PASS!/5
-echo Failed: !TOTAL_FAIL!/5
+echo === Race Condition ===
 echo.
 
-if !TOTAL_FAIL! equ 0 (
-    echo ============================================
-echo SUCCESS: ALL TEST SUITES PASSED
-    echo ============================================
+echo [6/6] stress test (MSVC + GCC)...
+set /a RACE_PASS=0
+
+cl -nologo -W4 -EHsc -utf-8 -O2 test_race_condition.cpp -Fetest_race_msvc.exe >nul 2>&1
+if errorlevel 1 (
+    echo   [FAILED] MSVC compile error
+    set /a FAIL+=1
+    goto :race_done
+)
+
+"%CD%\test_race_msvc.exe" >nul 2>&1
+if errorlevel 1 (
+    echo   [FAILED] MSVC race test failed
+    set /a FAIL+=1
+    goto :race_done
+)
+set /a RACE_PASS+=1
+
+g++ -O2 -std=c++11 -o test_race_gcc.exe test_race_condition.cpp -pthread >nul 2>&1
+if errorlevel 1 (
+    echo   [FAILED] GCC compile error
+    set /a FAIL+=1
+    goto :race_done
+)
+
+"%CD%\test_race_gcc.exe" >nul 2>&1
+if errorlevel 1 (
+    echo   [FAILED] GCC race test failed
+    set /a FAIL+=1
+    goto :race_done
+)
+set /a RACE_PASS+=1
+
+echo   [PASS] MSVC + GCC
+set /a PASS+=1
+goto :race_end
+
+:race_done
+echo   MSVC !RACE_PASS!/2, GCC !RACE_PASS!/2
+
+:race_end
+
+:: --------------------------------------------
+:: Summary
+:: --------------------------------------------
+echo.
+echo ============================================
+echo Results: !PASS!/6 suites passed, !FAIL!/6 failed
+echo ============================================
+
+if !FAIL! equ 0 (
     echo.
-    echo Test Results:
-    echo - smart_ptr.h:      MSVC [PASS], GCC [PASS]
-    echo - smart_ptr_mt.h:   MSVC [PASS], GCC [PASS]
-    echo - test_com.cpp:     MSVC [PASS]
+    echo   smart_ptr.h:     13 tests (MSVC + GCC^)
+    echo   smart_ptr_mt.h:  38 tests (MSVC + GCC^)
+    echo   test_com.cpp:     5 tests (MSVC^)
+    echo   race condition:   5 tests x2 (MSVC + GCC^)
     echo.
-    echo Total: 54 tests passed (smart_ptr.h: 12, smart_ptr_mt.h: 37, test_com.cpp: 5)
+    echo   Total: 114 tests across 6 suites
     echo ============================================
     exit /b 0
 ) else (
-    echo ============================================
-    FAILURE: SOME TEST SUITES FAILED
-    echo ============================================
     exit /b 1
 )

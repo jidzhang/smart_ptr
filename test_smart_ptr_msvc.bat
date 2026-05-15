@@ -7,7 +7,7 @@ echo ========================================
 echo.
 
 echo [1/2] Compiling test_comprehensive.cpp...
-cl -nologo -W4 -EHsc -utf-8 -O2 test_comprehensive.cpp
+cl -nologo -W4 -EHsc -utf-8 -O2 test_comprehensive.cpp -Fetest_comprehensive_msvc.exe
 if errorlevel 1 (
     echo [FAILED] Compilation failed
     exit /b 1
@@ -17,7 +17,7 @@ echo       OK
 echo.
 echo [2/2] Running tests...
 echo.
-test_comprehensive.exe
+"%CD%\test_comprehensive_msvc.exe"
 if errorlevel 1 (
     echo.
     echo [FAILED] Tests failed

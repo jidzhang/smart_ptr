@@ -17,7 +17,7 @@ echo       OK
 echo.
 echo [2/2] Running tests...
 echo.
-test_comprehensive_mt_gcc.exe
+"%CD%\test_comprehensive_mt_gcc.exe"
 if errorlevel 1 (
     echo.
     echo [FAILED] Tests failed
