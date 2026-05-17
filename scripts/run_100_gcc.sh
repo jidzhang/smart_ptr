@@ -13,10 +13,10 @@ for i in $(seq 1 100); do
     ./test_all_gcc.sh > /dev/null 2>&1
     if [ $? -eq 0 ]; then
         echo "   [OK] Run $i"
-        ((PASS_COUNT++))
+        PASS_COUNT=$((PASS_COUNT + 1))
     else
         echo "   [FAILED] Run $i"
-        ((FAIL_COUNT++))
+        FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
 done
 
