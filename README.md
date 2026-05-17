@@ -1,391 +1,391 @@
-# smart_ptr - C++98 智能指针库
+# smart_ptr - C++98 Smart Pointer Library
 
-简洁、高效的 C++98/03 智能指针实现，提供 `shared_ptr`、`weak_ptr` 和 `unique_ptr`。
+A concise and efficient C++98/03 smart pointer implementation providing `shared_ptr`, `weak_ptr`, and `unique_ptr`.
 
-## 📁 文件说明
+## File Structure
 
-### 核心文件
-- **include/smart_ptr.h** - 单线程版本（零原子开销，纯单线程场景）
-- **include/smart_ptr_mt.h** - 多线程版本（原子引用计数，支持跨线程共享所有权）
+### Core Headers
+- **include/smart_ptr.h** - Single-threaded version (zero atomic overhead, pure single-threaded scenarios)
+- **include/smart_ptr_mt.h** - Multi-threaded version (atomic reference counting, supports cross-thread shared ownership)
 
-> **如何选择？** 见下方 [版本选择指南](#版本选择指南)。
+> **How to choose?** See the [Version Selection Guide](#version-selection-guide) below.
 
-### 源代码和测试文件
-- **test_comprehensive.cpp** - smart_ptr.h 单元测试（13个测试，C++11）
-- **test_comprehensive_mt.cpp** - smart_ptr_mt.h 单元测试（38个测试，C++11）
-- **demo.cpp** - 演示程序（使用 smart_ptr_mt.h，严格 C++98）
-- **test_smart_ptr.cpp** - catch2 框架完整测试（C++11，使用 smart_ptr_mt.h）
-- **test_thread_safety.cpp** - 多线程压力测试（C++11，使用 smart_ptr_mt.h）
-- **test_race_condition.cpp** - 竞态条件专项测试（C++11，使用 smart_ptr_mt.h）
-- **test_com.cpp** - COM 指针测试（Windows 专属）
+### Source and Test Files
+- **test_comprehensive.cpp** - Unit tests for smart_ptr.h (13 tests, C++11)
+- **test_comprehensive_mt.cpp** - Unit tests for smart_ptr_mt.h (38 tests, C++11)
+- **demo.cpp** - Demo program (uses smart_ptr_mt.h, strict C++98)
+- **test_smart_ptr.cpp** - Full tests using catch2 framework (C++11, uses smart_ptr_mt.h)
+- **test_thread_safety.cpp** - Multi-threaded stress tests (C++11, uses smart_ptr_mt.h)
+- **test_race_condition.cpp** - Race condition focused tests (C++11, uses smart_ptr_mt.h)
+- **test_com.cpp** - COM pointer tests (Windows only)
 
-### 编译脚本
+### Build Scripts
 
-**MSVC（Windows）：**
+**MSVC (Windows):**
 ```
-scripts/build_demo.bat     - 单独编译 demo.cpp
-```
-
-**GCC / Linux / macOS：**
-```
-# 无需编译脚本，命令行直接编译（见下方 GCC 编译示例）
+scripts/build_demo.bat     - Compile demo.cpp
 ```
 
-### 测试脚本
+**GCC / Linux / macOS:**
+```
+# No build scripts needed; compile directly from command line (see GCC examples below)
+```
 
-**完整测试：**
+### Test Scripts
+
+**Full Test Suite:**
 ```
 Windows:
-  scripts/test_all.bat        - MSVC 一键运行所有测试（含 COM）
-  scripts/run_100_msvc.bat    - MSVC 100次循环压力测试
+  scripts/test_all.bat        - MSVC one-click run all tests (includes COM)
+  scripts/run_100_msvc.bat    - MSVC 100-run stress test
 
 Linux / macOS:
-  scripts/test_all_gcc.sh     - GCC 一键运行所有测试（自动跳过 COM）
-  scripts/run_100_gcc.sh      - GCC 100次循环压力测试
+  scripts/test_all_gcc.sh     - GCC one-click run all tests (auto-skips COM)
+  scripts/run_100_gcc.sh      - GCC 100-run stress test
 ```
 
-**单元测试脚本：**
+**Unit Test Scripts:**
 ```
 Windows (MSVC):
-  scripts/test_smart_ptr_msvc.bat      - smart_ptr.h      (13个测试)
-  scripts/test_smart_ptr_mt_msvc.bat   - smart_ptr_mt.h   (38个测试)
-  scripts/test_com_msvc.bat            - COM 指针测试    (5个测试)
+  scripts/test_smart_ptr_msvc.bat      - smart_ptr.h      (13 tests)
+  scripts/test_smart_ptr_mt_msvc.bat   - smart_ptr_mt.h   (38 tests)
+  scripts/test_com_msvc.bat            - COM pointer tests (5 tests)
 
 Linux / macOS (GCC):
-  scripts/test_smart_ptr_gcc.sh        - smart_ptr.h      (13个测试)
-  scripts/test_smart_ptr_mt_gcc.sh     - smart_ptr_mt.h   (38个测试)
+  scripts/test_smart_ptr_gcc.sh        - smart_ptr.h      (13 tests)
+  scripts/test_smart_ptr_mt_gcc.sh     - smart_ptr_mt.h   (38 tests)
 ```
 
-**工具：**
-- **scripts/clean.bat** - 清理生成的文件（Windows）
-- **scripts/clean.sh** - 清理生成的文件（Linux / macOS）
+**Utilities:**
+- **scripts/clean.bat** - Clean build artifacts (Windows)
+- **scripts/clean.sh** - Clean build artifacts (Linux / macOS)
 
-## 📖 版本选择指南
+## Version Selection Guide
 
 ### `smart_ptr.h` vs `smart_ptr_mt.h`
 
-| 维度 | `smart_ptr.h` (单线程) | `smart_ptr_mt.h` (多线程) |
-|------|------------------------|---------------------------|
-| **引用计数** | 普通 `int`，`++`/`--` | `volatile` + 原子操作（`Interlocked` / `__sync`） |
-| **weak_ptr → shared_ptr 升级** | 非原子（直接 `inc_ref()`） | 原子 CAS（`try_inc_ref()`），防止 TOCTOU |
-| **counter 释放** | `m_weak_ref_count = 0` | `m_weak_ref_count = 1`（extra weak ref 修复竞态） |
-| **编译依赖** | 无平台依赖 | 依赖 Windows SDK 或 GCC `__sync` 内置 |
-| **性能** | 最优（无内存屏障） | 每次拷贝/析构都有全内存屏障开销 |
-| **跨线程共享** | ❌ 不安全 | ✅ 安全 |
+| Dimension | `smart_ptr.h` (Single-threaded) | `smart_ptr_mt.h` (Multi-threaded) |
+|-----------|--------------------------------|-----------------------------------|
+| **Reference Count** | Plain `int`, `++`/`--` | `volatile` + atomic (`Interlocked` / `__sync`) |
+| **weak_ptr to shared_ptr upgrade** | Non-atomic (direct `inc_ref()`) | Atomic CAS (`try_inc_ref()`), prevents TOCTOU |
+| **Counter destruction** | `m_weak_ref_count = 0` | `m_weak_ref_count = 1` (extra weak ref fixes race) |
+| **Build dependency** | None | Windows SDK or GCC `__sync` builtins |
+| **Performance** | Optimal (no memory barrier) | Full memory barrier on every copy/destruct |
+| **Cross-thread sharing** | Not safe | Safe |
 
-### 什么时候用 `smart_ptr.h`（单线程）
+### When to use `smart_ptr.h` (Single-threaded)
 
-- 纯单线程程序（MFC 桌面应用、嵌入式单线程任务）
-- 性能敏感的内层循环（频繁创建/销毁临时 `shared_ptr`）
-- 引用计数操作在热路径上，原子开销不可接受
-- 确定对象生命周期完全在一个线程内管理
+- Pure single-threaded programs (MFC desktop apps, embedded single-threaded tasks)
+- Performance-sensitive inner loops (frequent creation/destruction of temporary `shared_ptr`)
+- Reference counting on hot paths where atomic overhead is unacceptable
+- Object lifetime known to be managed entirely within one thread
 
 ```cpp
-// 示例：MFC 单线程对话框
+// Example: MFC single-threaded dialog
 void CMyDialog::OnButtonClick()
 {
-    smart_ptr::shared_ptr<Data> data = LoadData();  // 安全：全部在 UI 线程
+    smart_ptr::shared_ptr<Data> data = LoadData();  // Safe: all on UI thread
     ProcessData(data);
-    // data 析构，引用计数归零
+    // data destructs, ref count drops to zero
 }
 ```
 
-### 什么时候用 `smart_ptr_mt.h`（多线程）
+### When to use `smart_ptr_mt.h` (Multi-threaded)
 
-- 对象需要在多个线程间共享所有权（生产者-消费者、线程池回调）
-- `weak_ptr::lock()` 可能在竞争环境下调用
-- 无法预先确定对象生命周期由哪个线程结束
+- Objects need shared ownership across threads (producer-consumer, thread pool callbacks)
+- `weak_ptr::lock()` may be called under contention
+- Cannot predetermine which thread ends the object lifetime
 
 ```cpp
-// 示例：线程池任务共享配置对象
+// Example: Thread pool tasks sharing a config object
 smart_ptr::shared_ptr<Config> globalConfig;
 
 void ThreadWorker()
 {
-    smart_ptr::shared_ptr<Config> local = globalConfig;  // 原子 inc_ref，安全
-    // 使用 local...
-}  // 原子 dec_ref，如果这是最后一个引用，在这里析构 Config
+    smart_ptr::shared_ptr<Config> local = globalConfig;  // Atomic inc_ref, safe
+    // Use local...
+}  // Atomic dec_ref; if this was the last reference, Config destructs here
 ```
 
-### ⚠️ 重要：线程安全边界
+### Important: Thread Safety Boundaries
 
-`smart_ptr_mt.h` 的线程安全保证**与标准库 `std::shared_ptr` 完全一致**：
+`smart_ptr_mt.h` provides exactly the same thread safety guarantees as `std::shared_ptr`:
 
-| 场景 | 是否安全 |
-|------|----------|
-| 多个线程持有**不同**的 `shared_ptr` 对象，指向同一控制块 | ✅ **安全**（引用计数原子化） |
-| 一个线程调用 `weak_ptr::lock()`，另一个线程释放最后一个 `shared_ptr` | ✅ **安全**（`try_inc_ref` 原子 CAS） |
-| 多个线程**同时读写同一个** `shared_ptr` 对象 | ❌ **不安全**（需要外部 `mutex`，标准库也一样） |
-| 通过 `shared_ptr` 访问被管理对象（如 `*sp`） | ❌ **不安全**（需要 `mutex` 或 `atomic` 保护对象本身） |
+| Scenario | Safe? |
+|----------|-------|
+| Multiple threads hold **different** `shared_ptr` objects pointing to the same control block | Safe (reference count is atomic) |
+| One thread calls `weak_ptr::lock()` while another releases the last `shared_ptr` | Safe (`try_inc_ref` atomic CAS) |
+| Multiple threads **concurrently read/write the same** `shared_ptr` object | **Not safe** (needs external `mutex`; same as standard library) |
+| Accessing the managed object through `shared_ptr` (e.g. `*sp`) | **Not safe** (needs `mutex` or `atomic` on the object itself) |
 
-> **核心原则**：`smart_ptr_mt` 解决的是"多线程共享**同一个对象的所有权**"的问题，不是"程序里有多个线程"的问题。
+> **Core principle**: `smart_ptr_mt` solves "multiple threads sharing **ownership of the same object**", not "the program has multiple threads".
 
 ---
 
-## 🚀 快速开始
+## Quick Start
 
-### 1. 快速单元测试
+### 1. Quick Unit Tests
 
-**MSVC（Windows）：**
+**MSVC (Windows):**
 ```bat
-:: 测试 smart_ptr.h (单线程)
+:: Test smart_ptr.h (single-threaded)
 scripts\test_smart_ptr_msvc.bat
 
-:: 测试 smart_ptr_mt.h (多线程)
+:: Test smart_ptr_mt.h (multi-threaded)
 scripts\test_smart_ptr_mt_msvc.bat
 
-:: 测试 COM 指针
+:: Test COM pointers
 scripts\test_com_msvc.bat
 ```
 
-**GCC / Linux / macOS：**
+**GCC / Linux / macOS:**
 ```bash
-# 编译并运行单线程测试
+# Compile and run single-threaded tests
 g++ -std=c++11 -Wall -O2 -Iinclude -o test_comprehensive tests/test_comprehensive.cpp
 ./test_comprehensive
 
-# 编译并运行多线程测试
+# Compile and run multi-threaded tests
 g++ -std=c++11 -Wall -O2 -Iinclude -pthread -o test_comprehensive_mt tests/test_comprehensive_mt.cpp
 ./test_comprehensive_mt
 
-# 或使用现成的脚本
+# Or use the ready-made scripts
 scripts/test_smart_ptr_gcc.sh
 scripts/test_smart_ptr_mt_gcc.sh
 ```
 
-### 2. 完整功能测试 + 压力测试
+### 2. Full Functional Test + Stress Test
 
-**MSVC（Windows）：**
+**MSVC (Windows):**
 ```bat
-scripts\test_all.bat         :: 单次完整测试（含 COM）
-scripts\run_100_msvc.bat     :: 100次循环压力测试
+scripts\test_all.bat         :: Single full test run (includes COM)
+scripts\run_100_msvc.bat     :: 100-run stress test
 ```
 
-**GCC / Linux / macOS：**
+**GCC / Linux / macOS:**
 ```bash
-scripts/test_all_gcc.sh      # 单次完整测试（自动跳过 COM）
-scripts/run_100_gcc.sh       # 100次循环压力测试
+scripts/test_all_gcc.sh      # Single full test run (auto-skips COM)
+scripts/run_100_gcc.sh       # 100-run stress test
 ```
 
-### 3. 编译 demo
+### 3. Compile Demo
 
-**MSVC：**
+**MSVC:**
 ```bat
 scripts\build_demo.bat
 ```
 
-**GCC / Linux / macOS：**
+**GCC / Linux / macOS:**
 ```bash
 g++ -std=c++11 -Wall -O2 -Iinclude -o demo demo.cpp
 ./demo
 ```
 
-## 📋 测试覆盖
+## Test Coverage
 
-### test_comprehensive.cpp (smart_ptr.h，13个测试)
-1. shared_ptr 基本操作
-2. shared_ptr 拷贝语义
-3. weak_ptr 过期跟踪
-4. unique_ptr 基本操作
-5. reset 函数
-6. swap 函数
-7. 比较运算符
-8. weak_ptr 比较运算符
-9. weak_ptr nullptr 比较
-10. weak_ptr 比较线程安全
-11. shared_ptr 移动语义
-12. unique_ptr 移动语义
-13. weak_ptr 移动语义
+### test_comprehensive.cpp (smart_ptr.h, 13 tests)
+1. shared_ptr basic operations
+2. shared_ptr copy semantics
+3. weak_ptr expiration tracking
+4. unique_ptr basic operations
+5. reset function
+6. swap function
+7. Comparison operators
+8. weak_ptr comparison operators
+9. weak_ptr nullptr comparison
+10. weak_ptr comparison thread safety
+11. shared_ptr move semantics
+12. unique_ptr move semantics
+13. weak_ptr move semantics
 
-### test_comprehensive_mt.cpp (smart_ptr_mt.h，38个测试)
-1-7. 基础功能（shared_ptr、weak_ptr、unique_ptr 基本操作）
-8-11. 比较运算符、operator!()、跨类型比较、owner_before()
-12-14. make_shared、make_unique、nullptr 比较
-15-16. unique_ptr swap、weak_ptr swap
-17-20. weak_ptr 扩展（默认构造、拷贝赋值、reset、use_count）
-21-23. unique_ptr 扩展（默认构造、reset(new)、unique()）
-24-27. shared_ptr 扩展（get()、解引用、从 weak_ptr 构造、unique()）
-28-30. shared_array（基本操作、拷贝、swap）
-31-32. 弱引用赋值、指针转换（static/dynamic/const）
-33-34. weak_ptr 比较运算符、nullptr 比较
-35. weak_ptr 比较线程安全
-36-38. 移动语义（shared_ptr、unique_ptr、weak_ptr）
+### test_comprehensive_mt.cpp (smart_ptr_mt.h, 38 tests)
+1-7. Basic functions (shared_ptr, weak_ptr, unique_ptr basic operations)
+8-11. Comparison operators, operator!(), cross-type comparison, owner_before()
+12-14. make_shared, make_unique, nullptr comparison
+15-16. unique_ptr swap, weak_ptr swap
+17-20. weak_ptr extensions (default construct, copy assignment, reset, use_count)
+21-23. unique_ptr extensions (default construct, reset(new), unique())
+24-27. shared_ptr extensions (get(), dereference, construct from weak_ptr, unique())
+28-30. shared_array (basic operations, copy, swap)
+31-32. Weak reference assignment, pointer casts (static/dynamic/const)
+33-34. weak_ptr comparison operators, nullptr comparison
+35. weak_ptr comparison thread safety
+36-38. Move semantics (shared_ptr, unique_ptr, weak_ptr)
 
-### test_smart_ptr.cpp (catch2 框架)
-- 完整的功能测试覆盖（39 个测试用例，121 个断言）
-- 使用 catch2 框架的测试用例
+### test_smart_ptr.cpp (catch2 framework)
+- Full functional test coverage (39 test cases, 121 assertions)
+- Tests using the catch2 framework
 
-### test_race_condition.cpp (竞态条件专项测试)
-- 最后一个 shared_ptr 和最后一个 weak_ptr 并发销毁
-- 多个 shared_ptr + 一个 weak_ptr 并发销毁
-- 一个 shared_ptr + 多个 weak_ptr 并发销毁
-- 并发 `lock()` 和 `shared_ptr` 析构
-- 并发 `weak_ptr` 拷贝和 `shared_ptr` 析构
+### test_race_condition.cpp (Race condition focused tests)
+- Last shared_ptr and last weak_ptr destroyed concurrently
+- Multiple shared_ptrs + one weak_ptr destroyed concurrently
+- One shared_ptr + multiple weak_ptrs destroyed concurrently
+- Concurrent `lock()` and `shared_ptr` destruction
+- Concurrent `weak_ptr` copy and `shared_ptr` destruction
 
-### test_thread_safety.cpp (多线程压力测试)
-- 并发拷贝操作
-- 快速创建/销毁循环
-- weak_ptr lock 竞争
-- reset/swap 混合操作压力测试
-- 并发 move 操作压力测试
+### test_thread_safety.cpp (Multi-threaded stress tests)
+- Concurrent copy operations
+- Fast create/destroy loops
+- weak_ptr lock contention
+- reset/swap mixed operation stress test
+- Concurrent move operation stress test
 
-## 💡 使用示例
+## Usage Examples
 
 ```cpp
-#include "smart_ptr.h"  // 或 "smart_ptr_mt.h"
+#include "smart_ptr.h"  // or "smart_ptr_mt.h"
 using namespace smart_ptr;
 
-// shared_ptr - 共享所有权
+// shared_ptr - shared ownership
 shared_ptr<int> sp1(new int(42));
-shared_ptr<int> sp2 = sp1;  // 引用计数 = 2
-sp1.reset();  // sp2 仍然拥有对象
+shared_ptr<int> sp2 = sp1;  // ref count = 2
+sp1.reset();  // sp2 still owns the object
 
-// weak_ptr - 弱引用，不增加引用计数
+// weak_ptr - weak reference, does not increase ref count
 weak_ptr<int> wp = sp2;
 if (!wp.expired()) {
-    shared_ptr<int> sp3 = wp.lock();  // 尝试获取 shared_ptr
+    shared_ptr<int> sp3 = wp.lock();  // Try to acquire shared_ptr
 }
 
-// unique_ptr - 独占所有权
+// unique_ptr - exclusive ownership
 unique_ptr<int> up(new int(100));
-unique_ptr.release();  // 释放所有权，返回原始指针
+unique_ptr.release();  // Release ownership, return raw pointer
 ```
 
-## ✨ 主要特性
+## Key Features
 
-### C++98/03 完全兼容
-- 无 C++11 特性要求（核心库）
-- 支持 VS2005 - VS2022 全版本
-- 支持 GCC 4.x+ / Clang 3.x+
+### C++98/03 Fully Compatible
+- No C++11 features required (core library)
+- Supports VS2005 - VS2022 all versions
+- Supports GCC 4.x+ / Clang 3.x+
 
-### 现代化的接口设计
-- **Safe Bool Idiom** - `if(sp)` 可以，但 `int x = sp;` 编译错误
-- **operator!()** - `if (!sp)` 支持
-- **完整 STL 风格接口** - 支持 `==`、`!=`、`<`、`<=`、`>`、`>=`
-- **nullptr 兼容** - 通过宏自动适配 nullptr/0
-- **移动语义** - C++11+ 支持移动构造和移动赋值
+### Modern Interface Design
+- **Safe Bool Idiom** - `if(sp)` works, but `int x = sp;` is a compile error
+- **operator!()** - `if (!sp)` supported
+- **Full STL-style interface** - Supports `==`, `!=`, `<`, `<=`, `>`, `>=`
+- **nullptr compatible** - Auto-adapts nullptr/0 via macros
+- **Move semantics** - Move constructor and move assignment for C++11+
 
-### 线程安全（smart_ptr_mt.h）
-- 使用原子操作（Interlocked API 或 __sync builtins）
-- 完全支持多线程环境
-- 跨平台支持（Windows + GCC/Clang）
+### Thread Safety (smart_ptr_mt.h)
+- Atomic operations (Interlocked API or __sync builtins)
+- Full multi-threaded environment support
+- Cross-platform (Windows + GCC/Clang)
 
-### 内存管理器支持
-- `std_mem_mgr<T>` - 标准 delete/delete[]
-- `com_mem_mgr<T>` - COM 对象（AddRef/Release）
-- `array_mem_mgr<T>` - 数组支持（delete[]）
+### Memory Manager Support
+- `std_mem_mgr<T>` - Standard delete/delete[]
+- `com_mem_mgr<T>` - COM objects (AddRef/Release)
+- `array_mem_mgr<T>` - Array support (delete[])
 
-### 工厂函数（STL 风格）
-- `make_shared<T>(args...)` - 创建 shared_ptr
-- `make_unique<T>(args...)` - 创建 unique_ptr
+### Factory Functions (STL style)
+- `make_shared<T>(args...)` - Create shared_ptr
+- `make_unique<T>(args...)` - Create unique_ptr
 
-## 🛠️ 编译器兼容性
+## Compiler Compatibility
 
-| 编译器 | 版本 | smart_ptr.h | smart_ptr_mt.h | 测试状态 |
-|--------|------|-------------|---------------|----------|
-| MSVC   | VS2005+ | ✅ 13/13 通过 | ✅ 38/38 通过 | Windows 全功能 |
-| GCC    | 4.x+   | ✅ 13/13 通过 | ✅ 38/38 通过 | Linux/macOS 全功能（COM 测试跳过） |
-| Clang  | 3.x+   | ✅ 兼容 | ✅ 兼容 | 与 GCC 相同 |
+| Compiler | Version | smart_ptr.h | smart_ptr_mt.h | Test Status |
+|----------|---------|-------------|---------------|-------------|
+| MSVC   | VS2005+ | 13/13 pass | 38/38 pass | Windows full feature |
+| GCC    | 4.x+   | 13/13 pass | 38/38 pass | Linux/macOS full feature (COM skipped) |
+| Clang  | 3.x+   | Compatible | Compatible | Same as GCC |
 
-### 平台差异说明
+### Platform Differences
 
-| 功能 | Windows | Linux / macOS |
-|------|---------|---------------|
-| `smart_ptr.h` 单线程测试 | ✅ 13/13 | ✅ 13/13 |
-| `smart_ptr_mt.h` 多线程测试 | ✅ 38/38 | ✅ 38/38 |
-| 竞态条件压力测试 | ✅ 5/5 | ✅ 5/5 |
-| catch2 完整测试 | ✅ 39/39 | ✅ 39/39 |
-| COM 指针测试 (`test_com.cpp`) | ✅ 5/5 | ⏭️ 跳过（`windows.h` 不可用） |
-| 100 次循环压力测试 | ✅ 通过 | ✅ 通过 |
+| Feature | Windows | Linux / macOS |
+|---------|---------|---------------|
+| `smart_ptr.h` single-threaded tests | 13/13 | 13/13 |
+| `smart_ptr_mt.h` multi-threaded tests | 38/38 | 38/38 |
+| Race condition stress tests | 5/5 | 5/5 |
+| catch2 full tests | 39/39 | 39/39 |
+| COM pointer tests (`test_com.cpp`) | 5/5 | Skipped (`windows.h` unavailable) |
+| 100-run stress tests | Pass | Pass |
 
-## 🔧 手动编译示例
+## Manual Compilation Examples
 
 ### GCC / Linux / macOS
 
 ```bash
-# 单线程测试
+# Single-threaded tests
 g++ -std=c++11 -Wall -O2 -Iinclude -o test_comprehensive tests/test_comprehensive.cpp
 ./test_comprehensive
 
-# 多线程测试（必须加 -pthread）
+# Multi-threaded tests (must add -pthread)
 g++ -std=c++11 -Wall -O2 -Iinclude -pthread -o test_comprehensive_mt tests/test_comprehensive_mt.cpp
 ./test_comprehensive_mt
 
-# 竞态条件压力测试
+# Race condition stress tests
 g++ -std=c++11 -Wall -O2 -Iinclude -pthread -o test_race tests/test_race_condition.cpp
 ./test_race
 
-# catch2 完整测试
+# catch2 full tests
 g++ -std=c++11 -Wall -O2 -Iinclude -pthread -o test_smart_ptr tests/test_smart_ptr.cpp
 ./test_smart_ptr
 
-# 编译 demo
+# Compile demo
 g++ -std=c++11 -Wall -O2 -Iinclude -o demo demo.cpp
 ./demo
 ```
 
 ### MSVC (Windows)
 ```bat
-:: 编译单元测试
+:: Compile unit tests
 cl -nologo -W4 -EHsc -utf-8 -O2 -Iinclude tests\test_comprehensive.cpp
 
-:: 编译 demo
+:: Compile demo
 cl -nologo -W4 -EHsc -utf-8 -O2 -Iinclude demo.cpp
 ```
 
-## 🧹 清理生成的文件
+## Clean Build Artifacts
 
-**Windows：**
+**Windows:**
 ```bat
 scripts\clean.bat
 ```
 
-**Linux / macOS：**
+**Linux / macOS:**
 ```bash
 scripts/clean.sh
 ```
 
-## 📌 版本历史
+## Version History
 
-### v1.4 (当前版本)
-- ✅ 添加 Unix 测试脚本（`test_all_gcc.sh`、`run_100_gcc.sh`、`clean.sh`）
-- ✅ 完善版本选择指南（单线程 vs 多线程）
-- ✅ 竞态条件专项测试（`test_race_condition.cpp`，5 个场景）
-- ✅ 非 Windows 平台自动跳过 COM 测试
-- ✅ 修复 release() 函数双重释放竞态（`m_weak_ref_count=1` 起始）
+### v1.4 (Current)
+- Add Unix test scripts (`test_all_gcc.sh`, `run_100_gcc.sh`, `clean.sh`)
+- Complete version selection guide (single-threaded vs multi-threaded)
+- Race condition focused tests (`test_race_condition.cpp`, 5 scenarios)
+- Auto-skip COM tests on non-Windows platforms
+- Fix release() double-free race (`m_weak_ref_count=1` initial value)
 
 ### v1.3
-- ✅ 添加移动语义（shared_ptr、weak_ptr、unique_ptr）
-- ✅ 添加 weak_ptr 比较运算符（==、!=、nullptr 比较）
-- ✅ 添加单元测试覆盖移动语义和 weak_ptr 比较
-- ✅ GCC 测试改用 C++11 标准（提升测试覆盖度）
-- ✅ 优化注释（保留关键线程安全说明）
+- Add move semantics (shared_ptr, weak_ptr, unique_ptr)
+- Add weak_ptr comparison operators (==, !=, nullptr comparison)
+- Add unit tests covering move semantics and weak_ptr comparison
+- GCC tests use C++11 standard (improved coverage)
+- Refined comments (kept critical thread safety notes)
 
 ### v1.2
-- ✅ 修复 release() 函数的 use-after-free 问题
-- ✅ 添加 Safe Bool Idiom（C++03 兼容）
-- ✅ 添加 operator!() 否定运算符
-- ✅ 添加跨类型比较运算符
-- ✅ 添加 weak_ptr::owner_before()
-- ✅ 添加 make_shared/make_unique 工厂函数
-- ✅ 添加 unique_ptr::release() 方法
-- ✅ 统一接口，接近 STL 风格
-- ✅ 完整单元测试覆盖（39个测试用例）
-- ✅ 100次循环压力测试验证
+- Fix release() use-after-free issue
+- Add Safe Bool Idiom (C++03 compatible)
+- Add operator!() negation operator
+- Add cross-type comparison operators
+- Add weak_ptr::owner_before()
+- Add make_shared/make_unique factory functions
+- Add unique_ptr::release() method
+- Unified interface, close to STL style
+- Complete unit test coverage (39 test cases)
+- 100-run stress test validation
 
 ### v1.1
-- 基础 shared_ptr、weak_ptr、unique_ptr 实现
-- 单线程版本
+- Basic shared_ptr, weak_ptr, unique_ptr implementation
+- Single-threaded version
 
-## 📄 许可证
+## License
 
-MIT License - 基于 oddman 的原始实现
+MIT License - Based on oddman's original implementation
 
 ---
 
-**注意事项：**
-- 单线程版本（`smart_ptr.h`）适合纯单线程应用，零原子开销
-- 多线程应用请使用 `smart_ptr_mt.h`，引用计数操作是原子的
-- **同一个** `shared_ptr` 对象的多线程读写需要外部 `mutex` 保护（与 `std::shared_ptr` 行为一致）
-- MSVC 编译时请确保使用 `-utf-8` 选项处理 UTF-8 源文件
-- COM 指针测试（`test_com.cpp`）仅在 Windows 平台可用
+**Notes:**
+- Single-threaded version (`smart_ptr.h`) is suitable for pure single-threaded apps with zero atomic overhead
+- For multi-threaded apps use `smart_ptr_mt.h`; reference counting operations are atomic
+- Concurrent read/write on the **same** `shared_ptr` object requires an external `mutex` (same behavior as `std::shared_ptr`)
+- When compiling with MSVC, use `-utf-8` to handle UTF-8 source files
+- COM pointer tests (`test_com.cpp`) are only available on Windows
