@@ -2,16 +2,15 @@
 
 echo "============================================"
 echo "Running GCC tests 100 times"
-echo "Includes: demo.exe, test_smart_ptr.exe, test_thread_safety.exe"
 echo "============================================"
 echo ""
 
 PASS_COUNT=0
 FAIL_COUNT=0
 
-for i in {1..100}; do
+for i in $(seq 1 100); do
     echo "Run $i/100..."
-    ./test_gcc.bat > /dev/null 2>&1
+    ./test_all_gcc.sh > /dev/null 2>&1
     if [ $? -eq 0 ]; then
         echo "   [OK] Run $i"
         ((PASS_COUNT++))

@@ -3,7 +3,7 @@
  * Compile with: g++ -std=c++11 -pthread -O2 -o test_thread_safety.exe test_thread_safety.cpp
  *              cl -std:c++11 -EHsc -O2 -nologo test_thread_safety.cpp
  */
-#include "smart_ptr_mt.h"
+#include "../include/smart_ptr_mt.h"
 #include <thread>
 #include <atomic>
 #include <vector>

@@ -2,28 +2,22 @@
 setlocal enabledelayedexpansion
 
 echo ============================================
-echo COM Smart Pointer Test (MSVC)
+echo Building demo.cpp (MSVC)
 echo ============================================
 echo.
 
-echo Compiling test_com.cpp...
-cl -nologo -W4 -EHsc -O2 -DUNICODE -D_UNICODE test_com.cpp
+echo Compiling demo.cpp with cl.exe (C++98 standard)...
+cl -nologo -W4 -EHsc -utf-8 -O2 -I..\include ..\demo.cpp
 if errorlevel 1 (
+    echo.
     echo [FAILED] Compilation failed
     exit /b 1
 )
-echo       OK
-
-echo.
-echo Running tests...
-"%CD%\test_com.exe"
-if errorlevel 1 (
-    echo [FAILED] Tests failed
-    exit /b 1
-)
 
 echo.
 echo ============================================
-echo ALL TESTS PASSED
+echo Build successful!
+echo Run: demo.exe
 echo ============================================
+"%CD%\demo.exe"
 exit /b 0

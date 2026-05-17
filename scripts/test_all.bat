@@ -16,7 +16,7 @@ echo === MSVC Tests ===
 echo.
 
 echo [1/6] smart_ptr.h (MSVC)...
-cl -nologo -W4 -EHsc -utf-8 -O2 test_comprehensive.cpp -Fetest_comprehensive_msvc.exe >nul 2>&1
+cl -nologo -W4 -EHsc -utf-8 -O2 ..\tests\test_comprehensive.cpp -I..\include -Fetest_comprehensive_msvc.exe >nul 2>&1
 if errorlevel 1 (
     echo   [FAILED] Compile error
     set /a FAIL+=1
@@ -32,7 +32,7 @@ if errorlevel 1 (
 )
 
 echo [2/6] smart_ptr_mt.h (MSVC)...
-cl -nologo -W4 -EHsc -utf-8 -O2 -Fetest_comprehensive_mt_msvc.exe test_comprehensive_mt.cpp >nul 2>&1
+cl -nologo -W4 -EHsc -utf-8 -O2 -Fetest_comprehensive_mt_msvc.exe ..\tests\test_comprehensive_mt.cpp -I..\include >nul 2>&1
 if errorlevel 1 (
     echo   [FAILED] Compile error
     set /a FAIL+=1
@@ -48,7 +48,7 @@ if errorlevel 1 (
 )
 
 echo [3/6] test_com.cpp (MSVC)...
-cl -nologo -W4 -EHsc -O2 -DUNICODE -D_UNICODE test_com.cpp >nul 2>&1
+cl -nologo -W4 -EHsc -O2 -DUNICODE -D_UNICODE ..\tests\test_com.cpp -I..\include >nul 2>&1
 if errorlevel 1 (
     echo   [FAILED] Compile error
     set /a FAIL+=1
@@ -71,7 +71,7 @@ echo === GCC Tests ===
 echo.
 
 echo [4/6] smart_ptr.h (GCC)...
-g++ -std=c++11 -Wall -O2 -o test_comprehensive_gcc.exe test_comprehensive.cpp >nul 2>&1
+g++ -std=c++11 -Wall -O2 -o test_comprehensive_gcc.exe ../tests/test_comprehensive.cpp -I../include >nul 2>&1
 if errorlevel 1 (
     echo   [FAILED] Compile error
     set /a FAIL+=1
@@ -87,7 +87,7 @@ if errorlevel 1 (
 )
 
 echo [5/6] smart_ptr_mt.h (GCC)...
-g++ -std=c++11 -Wall -O2 -o test_comprehensive_mt_gcc.exe test_comprehensive_mt.cpp >nul 2>&1
+g++ -std=c++11 -Wall -O2 -o test_comprehensive_mt_gcc.exe ../tests/test_comprehensive_mt.cpp -I../include >nul 2>&1
 if errorlevel 1 (
     echo   [FAILED] Compile error
     set /a FAIL+=1
@@ -112,7 +112,7 @@ echo.
 echo [6/6] stress test (MSVC + GCC)...
 set /a RACE_PASS=0
 
-cl -nologo -W4 -EHsc -utf-8 -O2 test_race_condition.cpp -Fetest_race_msvc.exe >nul 2>&1
+cl -nologo -W4 -EHsc -utf-8 -O2 ..\tests\test_race_condition.cpp -I..\include -Fetest_race_msvc.exe >nul 2>&1
 if errorlevel 1 (
     echo   [FAILED] MSVC compile error
     set /a FAIL+=1
@@ -127,7 +127,7 @@ if errorlevel 1 (
 )
 set /a RACE_PASS+=1
 
-g++ -O2 -std=c++11 -o test_race_gcc.exe test_race_condition.cpp -pthread >nul 2>&1
+g++ -O2 -std=c++11 -o test_race_gcc.exe ../tests/test_race_condition.cpp -I../include -pthread >nul 2>&1
 if errorlevel 1 (
     echo   [FAILED] GCC compile error
     set /a FAIL+=1

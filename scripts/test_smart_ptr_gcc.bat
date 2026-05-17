@@ -6,8 +6,8 @@ echo Testing smart_ptr.h (GCC)
 echo ========================================
 echo.
 
-echo [1/2] Compiling test_comprehensive.cpp...
-g++ -std=c++11 -Wall -O2 -o test_comprehensive_gcc.exe test_comprehensive.cpp
+echo [1/2] Compiling ../tests/test_comprehensive.cpp -I../include...
+g++ -std=c++11 -Wall -O2 -o test_comprehensive_gcc.exe ../tests/test_comprehensive.cpp -I../include
 if errorlevel 1 (
     echo [FAILED] Compilation failed
     exit /b 1

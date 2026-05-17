@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <utility>
-#include "smart_ptr.h"
+#include "../include/smart_ptr.h"
 
 using namespace smart_ptr;
 

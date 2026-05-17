@@ -7,7 +7,7 @@ echo ============================================
 echo.
 
 echo [MSVC] Compiling...
-cl -nologo -W4 -EHsc -utf-8 -O2 test_race_condition.cpp -Fetest_race_msvc.exe
+cl -nologo -W4 -EHsc -utf-8 -O2 ..	ests	est_race_condition.cpp -I..include -Fetest_race_msvc.exe
 if errorlevel 1 (
     echo [FAILED] MSVC compilation failed
     exit /b 1
@@ -25,7 +25,7 @@ if errorlevel 1 (
 
 echo.
 echo [GCC] Compiling...
-g++ -O2 -std=c++11 -o test_race_gcc.exe test_race_condition.cpp -pthread
+g++ -O2 -std=c++11 -o test_race_gcc.exe ..	ests	est_race_condition.cpp -I..include -pthread
 if errorlevel 1 (
     echo [FAILED] GCC compilation failed
     exit /b 1

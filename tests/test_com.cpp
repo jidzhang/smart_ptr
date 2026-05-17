@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 #include <windows.h>
-#include "smart_ptr_mt.h"
+#include "../include/smart_ptr_mt.h"
 
 // Mock COM object - simulates IUnknown behavior
 class MockComObject

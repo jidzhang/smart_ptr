@@ -10,7 +10,7 @@
 // Counter deletion is decided by a single atomic dec_weak_ref(), not by
 // two separate reads.
 
-#include "smart_ptr_mt.h"
+#include "../include/smart_ptr_mt.h"
 #include <stdio.h>
 #include <thread>
 #include <atomic>

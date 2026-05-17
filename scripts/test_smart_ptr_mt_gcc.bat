@@ -2,12 +2,12 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo Testing smart_ptr.h (MSVC)
+echo Testing smart_ptr_mt.h with GCC
 echo ========================================
 echo.
 
-echo [1/2] Compiling test_comprehensive.cpp...
-cl -nologo -W4 -EHsc -utf-8 -O2 test_comprehensive.cpp -Fetest_comprehensive_msvc.exe
+echo [1/2] Compiling ../tests/test_comprehensive_mt.cpp -I../include...
+g++ -std=c++11 -Wall -O2 -o test_comprehensive_mt_gcc.exe ../tests/test_comprehensive_mt.cpp -I../include
 if errorlevel 1 (
     echo [FAILED] Compilation failed
     exit /b 1
@@ -17,7 +17,7 @@ echo       OK
 echo.
 echo [2/2] Running tests...
 echo.
-"%CD%\test_comprehensive_msvc.exe"
+"%CD%\test_comprehensive_mt_gcc.exe"
 if errorlevel 1 (
     echo.
     echo [FAILED] Tests failed
