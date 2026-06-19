@@ -10,12 +10,24 @@ set PASS=0
 set FAIL=0
 set SKIP=0
 
-:: Compiler paths
-set "GCC4=D:\dev\MinGW-4\bin\g++.exe"
-set "GCC12=D:\dev\MinGW-12\bin\g++.exe"
-set "VS2005=C:\Program Files (x86)\Microsoft Visual Studio 8\VC\vcvarsall.bat"
-set "VS2008=C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\vcvarsall.bat"
-set "VS2019=C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
+rem GCC - use MINGW_HOME environment variables
+if defined MINGW4_HOME  set "GCC4=%MINGW4_HOME%\bin\g++.exe"
+if defined MINGW12_HOME set "GCC12=%MINGW12_HOME%\bin\g++.exe"
+rem VS2005/VS2008 - derived from COMNTOOLS environment variables (set by VS installer)
+if defined VS80COMNTOOLS  set "VS2005=%VS80COMNTOOLS%..\..\VC\vcvarsall.bat"
+if defined VS90COMNTOOLS  set "VS2008=%VS90COMNTOOLS%..\..\VC\vcvarsall.bat"
+rem VS2019 - COMNTOOLS not set since VS2017, use vswhere instead
+if defined VS160COMNTOOLS (
+    set "VS2019=%VS160COMNTOOLS%..\..\VC\Auxiliary\Build\vcvarsall.bat"
+) else (
+    set "VSWHERE=C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+    if exist "!VSWHERE!" (
+        "!VSWHERE!" -version "[16.0,17.0)" -property installationPath > _vs_tmp.txt 2>nul
+        set /p VS2019_PATH=<_vs_tmp.txt
+        del _vs_tmp.txt 2>nul
+        if defined VS2019_PATH set "VS2019=!VS2019_PATH!\VC\Auxiliary\Build\vcvarsall.bat"
+    )
+)
 
 :: ============================================
 :: GCC 4.7 (MinGW) - no env setup needed
