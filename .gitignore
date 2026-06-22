@@ -1,8 +1,27 @@
-# Build artifacts
+# Build artifacts (Windows / MSVC)
 *.exe
 *.obj
 *.pdb
 *.ilk
+
+# Build artifacts (GCC / Clang on Linux / macOS, no extension)
+/test_comprehensive
+/test_comprehensive_gcc
+/test_comprehensive_mt
+/test_comprehensive_mt_gcc
+/test_com
+/test_com_gcc
+/test_race
+/test_race_condition
+/test_race_gcc
+/test_smart_ptr
+/demo
+/demo_gcc4
+/demo_gcc12
+/test_comp_gcc4
+/test_comp_gcc12
+/test_comp_mt_gcc4
+/test_comp_mt_gcc12
 
 # Vim temporary files
 *.swp
@@ -11,6 +30,8 @@
 .*.swp
 .*.un~
 
-# Test artifacts
+# Test sources removed from tree
 test_thread_unsafe.cpp
+
+# Local settings
 /.claude/settings.local.json

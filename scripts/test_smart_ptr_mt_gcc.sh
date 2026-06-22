@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd "$(dirname "$0")"
+
 echo "========================================"
 echo "Testing smart_ptr_mt.h with GCC"
 echo "========================================"
