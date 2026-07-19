@@ -202,13 +202,13 @@ namespace smart_ptr
 	template <class T, typename mem_mgr> class weak_ptr;
 
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, mem_mgr> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
+	shared_ptr<T, typename mem_mgr::template rebind<T>::other> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, mem_mgr> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
+	shared_ptr<T, typename mem_mgr::template rebind<T>::other> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, mem_mgr> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
+	shared_ptr<T, typename mem_mgr::template rebind<T>::other> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, mem_mgr> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
+	shared_ptr<T, typename mem_mgr::template rebind<T>::other> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
 
 	// base class for shared_ptr and weak_ptr
 	template <class T, bool is_strong, typename mem_mgr>
@@ -330,9 +330,9 @@ namespace smart_ptr
 			return nRs;
 		}
 
-		// swap pointers
-		template <class Q, bool b, typename mem_mgr2>
-		void swap(base_ptr<Q, b, mem_mgr2>& rhs)
+		// swap pointers (same-type only: a different mem_mgr would call the
+		// wrong deleter on destruction)
+		void swap(base_ptr& rhs)
 		{
 			private_swap(m_counter, rhs.m_counter);
 			private_swap(m_ptr, rhs.m_ptr);
@@ -460,6 +460,17 @@ namespace smart_ptr
 	class std_mem_mgr
 	{
 	public:
+		// rebind<U>::other yields std_mem_mgr<U>. Used by the *_pointer_cast()
+		// helpers so that, e.g., static_pointer_cast<Base>(shared_ptr<Derived>)
+		// rebinds the deleter from std_mem_mgr<Derived> to std_mem_mgr<Base>;
+		// without this, release() would call deallocate(Base*) on a deleter
+		// whose parameter type is Derived*, which fails to type-check.
+		template <typename U>
+		struct rebind
+		{
+			typedef std_mem_mgr<U> other;
+		};
+
 		static void deallocate(T* p) { delete p; }
 		static T* allocate(void) { return new T(); }
 		template <typename A1>
@@ -485,13 +496,13 @@ namespace smart_ptr
 		// Pointer casts share another shared_ptr's control block directly rather than
 		// through acquire(), so they need access to the protected members.
 		template <class TT, class QQ, typename mm>
-		friend shared_ptr<TT, mm> static_pointer_cast(const shared_ptr<QQ, mm>& sp);
+		friend shared_ptr<TT, typename mm::template rebind<TT>::other> static_pointer_cast(const shared_ptr<QQ, mm>& sp);
 		template <class TT, class QQ, typename mm>
-		friend shared_ptr<TT, mm> dynamic_pointer_cast(const shared_ptr<QQ, mm>& sp);
+		friend shared_ptr<TT, typename mm::template rebind<TT>::other> dynamic_pointer_cast(const shared_ptr<QQ, mm>& sp);
 		template <class TT, class QQ, typename mm>
-		friend shared_ptr<TT, mm> const_pointer_cast(const shared_ptr<QQ, mm>& sp);
+		friend shared_ptr<TT, typename mm::template rebind<TT>::other> const_pointer_cast(const shared_ptr<QQ, mm>& sp);
 		template <class TT, class QQ, typename mm>
-		friend shared_ptr<TT, mm> reinterpret_pointer_cast(const shared_ptr<QQ, mm>& sp);
+		friend shared_ptr<TT, typename mm::template rebind<TT>::other> reinterpret_pointer_cast(const shared_ptr<QQ, mm>& sp);
 
 	public:
 		shared_ptr() : baseClass(0)
@@ -725,9 +736,9 @@ namespace smart_ptr
 
 	// pointer casts (STL style) — share ref_count to avoid double-free
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, mem_mgr> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	shared_ptr<T, typename mem_mgr::template rebind<T>::other> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		shared_ptr<T, mem_mgr> result;
+		shared_ptr<T, typename mem_mgr::template rebind<T>::other> result;
 		result.m_counter = sp.m_counter;
 		result.m_ptr = static_cast<T*>(sp.get());
 		if (result.m_counter)
@@ -738,12 +749,12 @@ namespace smart_ptr
 	}
 
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, mem_mgr> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	shared_ptr<T, typename mem_mgr::template rebind<T>::other> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
 		T* p = dynamic_cast<T*>(sp.get());
 		if (p)
 		{
-			shared_ptr<T, mem_mgr> result;
+			shared_ptr<T, typename mem_mgr::template rebind<T>::other> result;
 			result.m_counter = sp.m_counter;
 			result.m_ptr = p;
 			if (result.m_counter)
@@ -752,13 +763,13 @@ namespace smart_ptr
 			}
 			return result;
 		}
-		return shared_ptr<T, mem_mgr>();
+		return shared_ptr<T, typename mem_mgr::template rebind<T>::other>();
 	}
 
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, mem_mgr> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	shared_ptr<T, typename mem_mgr::template rebind<T>::other> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		shared_ptr<T, mem_mgr> result;
+		shared_ptr<T, typename mem_mgr::template rebind<T>::other> result;
 		result.m_counter = sp.m_counter;
 		result.m_ptr = const_cast<T*>(sp.get());
 		if (result.m_counter)
@@ -769,9 +780,9 @@ namespace smart_ptr
 	}
 
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, mem_mgr> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	shared_ptr<T, typename mem_mgr::template rebind<T>::other> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		shared_ptr<T, mem_mgr> result;
+		shared_ptr<T, typename mem_mgr::template rebind<T>::other> result;
 		result.m_counter = sp.m_counter;
 		result.m_ptr = reinterpret_cast<T*>(sp.get());
 		if (result.m_counter)
@@ -1094,9 +1105,9 @@ namespace smart_ptr
 			return 1;
 		}
 
-		// swap pointers
-		template <class Q, typename mem_mgr2>
-		void swap(unique_ptr<Q, mem_mgr2>& rhs)
+		// swap pointers (same-type only: a different mem_mgr would call the
+		// wrong deleter on destruction)
+		void swap(unique_ptr& rhs)
 		{
 			private_swap(m_ptr, rhs.m_ptr);
 		}
@@ -1365,6 +1376,13 @@ namespace smart_ptr
 	class com_mem_mgr
 	{
 	public:
+		// rebind<U>::other yields com_mem_mgr<U>; see std_mem_mgr::rebind.
+		template <typename U>
+		struct rebind
+		{
+			typedef com_mem_mgr<U> other;
+		};
+
 		static void deallocate(T* p) { p->Release(); }
 		static T* allocate(T* p)
 		{
@@ -1387,6 +1405,13 @@ namespace smart_ptr
 	class array_mem_mgr
 	{
 	public:
+		// rebind<U>::other yields array_mem_mgr<U>; see std_mem_mgr::rebind.
+		template <typename U>
+		struct rebind
+		{
+			typedef array_mem_mgr<U> other;
+		};
+
 		static void deallocate(T* p) { delete[] p; }
 		static T* allocate(int n) { return new T[n]; }
 	};

@@ -247,8 +247,7 @@ int test_shared_ptr_cross_type_move()
 
 int test_pointer_cast()
 {
-    // Same-type casts exercise the cast functions' access to the control block.
-    // Cross-type casts hit the known mem_mgr-encoded-in-type limitation (R5).
+    // Same-type casts exercise the control block sharing path.
     shared_ptr<int> sp(new int(42));
     shared_ptr<int> sp2 = static_pointer_cast<int>(sp);
     if (sp2.get() != sp.get()) return 0;
@@ -259,6 +258,31 @@ int test_pointer_cast()
     if (sp.use_count() != 3) return 0;
     return 1;
 }
+
+int test_pointer_cast_cross_type()
+{
+    // Cross-type casts must rebind the deleter to the target type so the
+    // returned shared_ptr<Base> deletes via std_mem_mgr<Base> and compiles.
+    shared_ptr<Derived> d(new Derived());
+    shared_ptr<Base> b1 = static_pointer_cast<Base>(d);
+    if (b1.get() != d.get()) return 0;
+    if (b1->v != 7) return 0;
+    if (d.use_count() != 2) return 0;
+
+    shared_ptr<Base> b2 = dynamic_pointer_cast<Base>(d);
+    if (b2.get() != d.get()) return 0;
+    if (d.use_count() != 3) return 0;
+
+    // dynamic_pointer_cast back down: non-Derived fails -> empty
+    shared_ptr<Base> base(new Base());
+    shared_ptr<Derived> miss = dynamic_pointer_cast<Derived>(base);
+    if (miss.get() != 0) return 0;
+
+    shared_ptr<Base> b3 = reinterpret_pointer_cast<Base>(d);
+    if (b3.get() != d.get()) return 0;
+    if (d.use_count() != 4) return 0;
+    return 1;
+}
 #else
 // Dummy functions for C++98 (move semantics not supported)
 int test_shared_ptr_move() { return 1; }
@@ -266,6 +290,7 @@ int test_unique_ptr_move() { return 1; }
 int test_weak_ptr_move() { return 1; }
 int test_shared_ptr_cross_type_move() { return 1; }
 int test_pointer_cast() { return 1; }
+int test_pointer_cast_cross_type() { return 1; }
 #endif
 
 int main()
@@ -290,10 +315,11 @@ int main()
         { test_unique_ptr_move, "unique_ptr move semantics" },
         { test_weak_ptr_move, "weak_ptr move semantics" },
         { test_shared_ptr_cross_type_move, "shared_ptr cross-type move" },
-        { test_pointer_cast, "pointer casts (static/dynamic)" }
+        { test_pointer_cast, "pointer casts (same-type)" },
+        { test_pointer_cast_cross_type, "pointer casts (cross-type, rebind)" }
     };
 
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 16; i++) {
         test_count++;
         printf("[Test %d] %s\n", test_count, tests[i].name);
         if (tests[i].func()) {

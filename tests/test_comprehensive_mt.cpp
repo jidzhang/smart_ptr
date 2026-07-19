@@ -159,6 +159,31 @@ int test_const_pointer_cast()
 	return 1;
 }
 
+int test_pointer_cast_cross_type()
+{
+	// Cross-type casts must rebind the deleter to the target type so the
+	// returned shared_ptr<Base> deletes via std_mem_mgr<Base> and compiles.
+	shared_ptr<Derived> d(new Derived(42));
+	shared_ptr<Base> b1 = static_pointer_cast<Base>(d);
+	if (b1.get() != d.get()) return 0;
+	if (b1->GetValue() != 42) return 0;
+	if (d.use_count() != 2) return 0;
+
+	shared_ptr<Base> b2 = dynamic_pointer_cast<Base>(d);
+	if (b2.get() != d.get()) return 0;
+	if (d.use_count() != 3) return 0;
+
+	// dynamic_pointer_cast back down: Base is not Derived -> empty
+	shared_ptr<Base> base(new Base(7));
+	shared_ptr<Derived> miss = dynamic_pointer_cast<Derived>(base);
+	if (miss.get() != 0) return 0;
+
+	shared_ptr<Base> b3 = reinterpret_pointer_cast<Base>(d);
+	if (b3.get() != d.get()) return 0;
+	if (d.use_count() != 4) return 0;
+	return 1;
+}
+
 int test_weak_ptr_owner_before()
 {
 	shared_ptr<int> sp1(new int(1));
@@ -640,6 +665,7 @@ int test_shared_ptr_cross_type_move()
 int test_shared_ptr_move() { return 1; }
 int test_unique_ptr_move() { return 1; }
 int test_weak_ptr_move() { return 1; }
+int test_pointer_cast_cross_type() { return 1; }
 int test_shared_ptr_cross_type_move() { return 1; }
 #endif
 
@@ -685,7 +711,8 @@ int main()
 		{ test_shared_ptr_get, "shared_ptr get()" },
 		{ test_shared_ptr_dereference, "shared_ptr operator* and operator->" },
 		{ test_shared_ptr_from_weak, "shared_ptr construct from weak_ptr" },
-		{ test_pointer_casts, "pointer casts (static/dynamic/const)" },
+		{ test_pointer_casts, "pointer casts (same-type)" },
+		{ test_pointer_cast_cross_type, "pointer casts (cross-type, rebind)" },
 		{ test_weak_ptr_comparison_operators, "weak_ptr comparison operators" },
 		{ test_weak_ptr_nullptr_comparison, "weak_ptr nullptr comparison" },
 		{ test_weak_ptr_comparison_thread_safety, "weak_ptr comparison thread safety" },

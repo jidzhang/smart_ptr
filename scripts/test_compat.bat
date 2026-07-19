@@ -70,7 +70,7 @@ if errorlevel 1 (
         echo   [FAIL] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 15/15
+        echo   [PASS] 16/16
         set /a PASS+=1
     )
 )
@@ -87,7 +87,7 @@ if errorlevel 1 (
         echo   [FAIL] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 39/39
+        echo   [PASS] 40/40
         set /a PASS+=1
     )
 )
@@ -138,7 +138,7 @@ if errorlevel 1 (
         echo   [FAIL] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 15/15
+        echo   [PASS] 16/16
         set /a PASS+=1
     )
 )
@@ -155,7 +155,7 @@ if errorlevel 1 (
         echo   [FAIL] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 39/39
+        echo   [PASS] 40/40
         set /a PASS+=1
     )
 )
@@ -406,7 +406,7 @@ if errorlevel 1 (
         echo   [FAIL] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 15/15
+        echo   [PASS] 16/16
         set /a PASS+=1
     )
 )
@@ -423,7 +423,7 @@ if errorlevel 1 (
         echo   [FAIL] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 39/39
+        echo   [PASS] 40/40
         set /a PASS+=1
     )
 )
@@ -513,7 +513,7 @@ if errorlevel 1 (
         echo   [FAIL] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 15/15
+        echo   [PASS] 16/16
         set /a PASS+=1
     )
 )
@@ -530,7 +530,7 @@ if errorlevel 1 (
         echo   [FAIL] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 39/39
+        echo   [PASS] 40/40
         set /a PASS+=1
     )
 )
