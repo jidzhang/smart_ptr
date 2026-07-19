@@ -8,6 +8,7 @@
 #include <atomic>
 #include <vector>
 #include <chrono>
+#include <mutex>
 #include <cstdio>
 
 #if defined(WIN32) || defined(_WIN32)
@@ -213,17 +214,24 @@ void Test6()
         if (local3) local3->value = i * 3;
     }
 #else
-    // Non-Windows (Linux/macOS): Concurrent test with time-based approach
+    // Non-Windows: concurrent stress, but synchronized on globalPtr. Concurrent
+    // read+write of the SAME shared_ptr object is UB even for std::shared_ptr, so
+    // the object is mutex-protected; threads still contend on the atomic ref counts
+    // through their own copies.
     const int DURATION_MS = 1000;
     smart_ptr::shared_ptr<TestObject> globalPtr(new TestObject());
-    smart_ptr::weak_ptr<TestObject> globalWeak(globalPtr);
+    std::mutex mtx;
     std::atomic<bool> stop{false};
     std::vector<std::thread> threads;
 
     auto reader = [&]() {
         while (!stop.load(std::memory_order_relaxed))
         {
-            smart_ptr::shared_ptr<TestObject> local = globalPtr;
+            smart_ptr::shared_ptr<TestObject> local;
+            {
+                std::lock_guard<std::mutex> lk(mtx);
+                local = globalPtr;
+            }
             if (local) { int v = local->value; (void)v; }
             std::this_thread::yield();
         }
@@ -232,7 +240,10 @@ void Test6()
     auto writer = [&]() {
         while (!stop.load(std::memory_order_relaxed))
         {
-            globalPtr.reset(new TestObject());
+            {
+                std::lock_guard<std::mutex> lk(mtx);
+                globalPtr.reset(new TestObject());
+            }
             std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
     };

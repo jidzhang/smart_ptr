@@ -611,12 +611,28 @@ int test_weak_ptr_move()
 	shared_ptr<int> sp(new int(300));
 	weak_ptr<int> wp1(sp);
 	weak_ptr<int> wp2(std::move(wp1));
-	
+
 	if (wp2.expired()) return 0;  // Should not be expired
 	shared_ptr<int> sp2 = wp2.lock();
 	if (sp2.get() == 0) return 0;
 	if (*sp2 != 300) return 0;
-	
+
+	return 1;
+}
+
+int test_shared_ptr_cross_type_move()
+{
+	shared_ptr<Derived> d(new Derived(123));
+	shared_ptr<Base> b(std::move(d));
+	if (b.use_count() != 1) return 0;   // moved, not copied
+	if (d.get() != 0) return 0;          // source emptied
+	if (b.get() == 0 || !b->IsDerived() || b->GetValue() != 123) return 0;
+
+	shared_ptr<Base> b2;
+	shared_ptr<Derived> d2(new Derived(456));
+	b2 = std::move(d2);
+	if (b2.use_count() != 1) return 0;
+	if (d2.get() != 0) return 0;
 	return 1;
 }
 #else
@@ -624,6 +640,7 @@ int test_weak_ptr_move()
 int test_shared_ptr_move() { return 1; }
 int test_unique_ptr_move() { return 1; }
 int test_weak_ptr_move() { return 1; }
+int test_shared_ptr_cross_type_move() { return 1; }
 #endif
 
 int main()
@@ -675,7 +692,8 @@ int main()
 		// Move semantics tests
 		{ test_shared_ptr_move, "shared_ptr move semantics" },
 		{ test_unique_ptr_move, "unique_ptr move semantics" },
-		{ test_weak_ptr_move, "weak_ptr move semantics" }
+		{ test_weak_ptr_move, "weak_ptr move semantics" },
+		{ test_shared_ptr_cross_type_move, "shared_ptr cross-type move" }
 	};
 
 	const int num_tests = sizeof(tests) / sizeof(tests[0]);

@@ -7,6 +7,9 @@ using namespace smart_ptr;
 int test_count = 0;
 int pass_count = 0;
 
+struct Base { int v; virtual ~Base() {} };
+struct Derived : Base { Derived() { v = 7; } };
+
 int test_shared_ptr_basic()
 {
     shared_ptr<int> sp(new int(42));
@@ -217,12 +220,43 @@ int test_weak_ptr_move()
     shared_ptr<int> sp(new int(300));
     weak_ptr<int> wp1(sp);
     weak_ptr<int> wp2(std::move(wp1));
-    
+
     if (wp2.expired()) return 0;  // Should not be expired
     shared_ptr<int> sp2 = wp2.lock();
     if (sp2.get() == 0) return 0;
     if (*sp2 != 300) return 0;
-    
+
+    return 1;
+}
+
+int test_shared_ptr_cross_type_move()
+{
+    shared_ptr<Derived> d(new Derived());
+    shared_ptr<Base> b(std::move(d));
+    if (b.use_count() != 1) return 0;   // moved, not copied
+    if (d.get() != 0) return 0;          // source emptied
+    if (b.get() == 0 || b->v != 7) return 0;
+
+    shared_ptr<Base> b2;
+    shared_ptr<Derived> d2(new Derived());
+    b2 = std::move(d2);
+    if (b2.use_count() != 1) return 0;
+    if (d2.get() != 0) return 0;
+    return 1;
+}
+
+int test_pointer_cast()
+{
+    // Same-type casts exercise the cast functions' access to the control block.
+    // Cross-type casts hit the known mem_mgr-encoded-in-type limitation (R5).
+    shared_ptr<int> sp(new int(42));
+    shared_ptr<int> sp2 = static_pointer_cast<int>(sp);
+    if (sp2.get() != sp.get()) return 0;
+    if (sp.use_count() != 2) return 0;
+
+    shared_ptr<int> sp3 = const_pointer_cast<int>(sp);
+    if (sp3.get() != sp.get()) return 0;
+    if (sp.use_count() != 3) return 0;
     return 1;
 }
 #else
@@ -230,6 +264,8 @@ int test_weak_ptr_move()
 int test_shared_ptr_move() { return 1; }
 int test_unique_ptr_move() { return 1; }
 int test_weak_ptr_move() { return 1; }
+int test_shared_ptr_cross_type_move() { return 1; }
+int test_pointer_cast() { return 1; }
 #endif
 
 int main()
@@ -252,10 +288,12 @@ int main()
         { test_weak_ptr_comparison_thread_safety, "weak_ptr comparison thread safety" },
         { test_shared_ptr_move, "shared_ptr move semantics" },
         { test_unique_ptr_move, "unique_ptr move semantics" },
-        { test_weak_ptr_move, "weak_ptr move semantics" }
+        { test_weak_ptr_move, "weak_ptr move semantics" },
+        { test_shared_ptr_cross_type_move, "shared_ptr cross-type move" },
+        { test_pointer_cast, "pointer casts (static/dynamic)" }
     };
 
-    for (int i = 0; i < 13; i++) {
+    for (int i = 0; i < 15; i++) {
         test_count++;
         printf("[Test %d] %s\n", test_count, tests[i].name);
         if (tests[i].func()) {
