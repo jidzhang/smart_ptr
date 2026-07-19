@@ -18,13 +18,16 @@ else
     ON_WINDOWS=0
 fi
 
+# Total number of suites (always 5; test_com is skipped on non-Windows)
+TOTAL_SUITES=5
+
 # --------------------------------------------
 # GCC Tests
 # --------------------------------------------
 echo "=== GCC Tests ==="
 echo ""
 
-echo "[1/4] smart_ptr.h (GCC)..."
+echo "[1/5] smart_ptr.h (GCC)..."
 g++ -std=c++11 -Wall -O2 -I../include -o test_comprehensive_gcc.exe ../tests/test_comprehensive.cpp > /dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "  [FAILED] Compile error"
@@ -35,12 +38,12 @@ else
         echo "  [FAILED] Tests failed"
         FAIL=$((FAIL+1))
     else
-        echo "  [PASS] 13/13"
+        echo "  [PASS] 15/15"
         PASS=$((PASS+1))
     fi
 fi
 
-echo "[2/4] smart_ptr_mt.h (GCC)..."
+echo "[2/5] smart_ptr_mt.h (GCC)..."
 g++ -std=c++11 -Wall -O2 -I../include -o test_comprehensive_mt_gcc.exe ../tests/test_comprehensive_mt.cpp > /dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "  [FAILED] Compile error"
@@ -51,13 +54,13 @@ else
         echo "  [FAILED] Tests failed"
         FAIL=$((FAIL+1))
     else
-        echo "  [PASS] 38/38"
+        echo "  [PASS] 39/39"
         PASS=$((PASS+1))
     fi
 fi
 
 if [ $ON_WINDOWS -eq 1 ]; then
-    echo "[3/4] test_com.cpp (GCC)..."
+    echo "[3/5] test_com.cpp (GCC)..."
     g++ -std=c++11 -Wall -O2 -I../include -DUNICODE -D_UNICODE -o test_com_gcc.exe ../tests/test_com.cpp > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "  [FAILED] Compile error"
@@ -73,7 +76,7 @@ if [ $ON_WINDOWS -eq 1 ]; then
         fi
     fi
 else
-    echo "[3/4] test_com.cpp (GCC)..."
+    echo "[3/5] test_com.cpp (GCC)..."
     echo "  [SKIP] Windows-only (requires windows.h)"
 fi
 
@@ -84,11 +87,7 @@ echo ""
 echo "=== Race Condition ==="
 echo ""
 
-if [ $ON_WINDOWS -eq 1 ]; then
-    echo "[4/4] stress test (GCC)..."
-else
-    echo "[4/4] stress test (GCC)..."
-fi
+echo "[4/5] stress test (GCC)..."
 g++ -O2 -std=c++11 -I../include -o test_race_gcc.exe ../tests/test_race_condition.cpp -pthread > /dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "  [FAILED] GCC compile error"
@@ -105,31 +104,57 @@ else
 fi
 
 # --------------------------------------------
+# Thread Safety Stress Test
+# --------------------------------------------
+echo ""
+echo "=== Thread Safety ==="
+echo ""
+
+echo "[5/5] thread safety (GCC)..."
+g++ -O2 -std=c++11 -I../include -o test_thread_safety_gcc.exe ../tests/test_thread_safety.cpp -pthread > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "  [FAILED] GCC compile error"
+    FAIL=$((FAIL+1))
+else
+    "$PWD/test_thread_safety_gcc.exe" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "  [FAILED] GCC thread safety test failed"
+        FAIL=$((FAIL+1))
+    else
+        echo "  [PASS] GCC"
+        PASS=$((PASS+1))
+    fi
+fi
+
+# --------------------------------------------
 # Summary
 # --------------------------------------------
 echo ""
 echo "============================================"
 if [ $ON_WINDOWS -eq 1 ]; then
-    echo "Results: $PASS/4 suites passed, $FAIL/4 failed"
+    echo "Results: $PASS/$TOTAL_SUITES suites passed, $FAIL/$TOTAL_SUITES failed"
 else
-    echo "Results: $PASS/3 suites passed, $FAIL/3 failed (1 skipped)"
+    SKIPPED=$((TOTAL_SUITES - PASS - FAIL))
+    echo "Results: $PASS/$TOTAL_SUITES suites passed, $FAIL/$TOTAL_SUITES failed ($SKIPPED skipped)"
 fi
 echo "============================================"
 
 if [ $FAIL -eq 0 ]; then
     echo ""
-    echo "  smart_ptr.h:     13 tests (GCC)"
-    echo "  smart_ptr_mt.h:  38 tests (GCC)"
+    echo "  smart_ptr.h:        15 tests (GCC)"
+    echo "  smart_ptr_mt.h:     39 tests (GCC)"
     if [ $ON_WINDOWS -eq 1 ]; then
-        echo "  test_com.cpp:     5 tests (GCC)"
-        echo "  race condition:   5 tests (GCC)"
+        echo "  test_com.cpp:        5 tests (GCC)"
+        echo "  race condition:      5 tests (GCC)"
+        echo "  thread safety:       8 tests (GCC)"
         echo ""
-        echo "  Total: 61 tests across 4 suites"
+        echo "  Total: 72 tests across 5 suites"
     else
-        echo "  test_com.cpp:     SKIPPED (Windows-only)"
-        echo "  race condition:   5 tests (GCC)"
+        echo "  test_com.cpp:        SKIPPED (Windows-only)"
+        echo "  race condition:      5 tests (GCC)"
+        echo "  thread safety:       8 tests (GCC)"
         echo ""
-        echo "  Total: 56 tests across 3 suites (1 skipped)"
+        echo "  Total: 67 tests across 4 suites (1 skipped)"
     fi
     echo "============================================"
     exit 0
