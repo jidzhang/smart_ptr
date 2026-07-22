@@ -6,8 +6,15 @@ echo smart_ptr_mt Race Condition Stress Test
 echo ============================================
 echo.
 
+REM --- Initialize MSVC environment (cl.exe / vcvars64.bat) ---
+call "%~dp0_setup_msvc.bat"
+if errorlevel 1 exit /b 1
+
+REM --- Pin CWD to this script's folder so ..\tests and ..\include resolve ---
+cd /d "%~dp0"
+
 echo [MSVC] Compiling...
-cl -nologo -W4 -EHsc -utf-8 -O2 ..	ests	est_race_condition.cpp -I..include -Fetest_race_msvc.exe
+cl -nologo -W4 -EHsc -utf-8 -O2 ..\tests\test_race_condition.cpp -I..\include -Fetest_race_msvc.exe
 if errorlevel 1 (
     echo [FAILED] MSVC compilation failed
     exit /b 1
@@ -25,7 +32,7 @@ if errorlevel 1 (
 
 echo.
 echo [GCC] Compiling...
-g++ -O2 -std=c++11 -o test_race_gcc.exe ..	ests	est_race_condition.cpp -I..include -pthread
+g++ -O2 -std=c++11 -o test_race_gcc.exe ..\tests\test_race_condition.cpp -I..\include -pthread
 if errorlevel 1 (
     echo [FAILED] GCC compilation failed
     exit /b 1

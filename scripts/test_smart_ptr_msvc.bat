@@ -6,8 +6,15 @@ echo Testing smart_ptr.h (MSVC)
 echo ========================================
 echo.
 
-echo [1/2] Compiling ..	ests	est_comprehensive.cpp -I..include...
-cl -nologo -W4 -EHsc -utf-8 -O2 ..	ests	est_comprehensive.cpp -I..include -Fetest_comprehensive_msvc.exe
+REM --- Initialize MSVC environment (cl.exe / vcvars64.bat) ---
+call "%~dp0_setup_msvc.bat"
+if errorlevel 1 exit /b 1
+
+REM --- Pin CWD to this script's folder so ..\tests and ..\include resolve ---
+cd /d "%~dp0"
+
+echo [1/2] Compiling ..\tests\test_comprehensive.cpp -I..\include...
+cl -nologo -W4 -EHsc -utf-8 -O2 ..\tests\test_comprehensive.cpp -I..\include -Fetest_comprehensive_msvc.exe
 if errorlevel 1 (
     echo [FAILED] Compilation failed
     exit /b 1
