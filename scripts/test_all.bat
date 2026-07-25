@@ -33,7 +33,7 @@ if errorlevel 1 (
         echo   [FAILED] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 13/13
+        echo   [PASS] 16/16
         set /a PASS+=1
     )
 )
@@ -49,7 +49,7 @@ if errorlevel 1 (
         echo   [FAILED] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 38/38
+        echo   [PASS] 40/40
         set /a PASS+=1
     )
 )
@@ -88,7 +88,7 @@ if errorlevel 1 (
         echo   [FAILED] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 13/13
+        echo   [PASS] 16/16
         set /a PASS+=1
     )
 )
@@ -104,7 +104,7 @@ if errorlevel 1 (
         echo   [FAILED] Tests failed
         set /a FAIL+=1
     ) else (
-        echo   [PASS] 38/38
+        echo   [PASS] 40/40
         set /a PASS+=1
     )
 )
@@ -266,14 +266,14 @@ echo ============================================
 
 if !FAIL! equ 0 (
     echo.
-    echo   smart_ptr.h:     13 tests (MSVC + GCC^)
-    echo   smart_ptr_mt.h:  38 tests (MSVC + GCC^)
+    echo   smart_ptr.h:     16 tests (MSVC + GCC^)
+    echo   smart_ptr_mt.h:  40 tests (MSVC + GCC^)
     echo   test_com.cpp:     5 tests (MSVC^)
     echo   race condition:   5 tests x2 (MSVC + GCC^)
     echo   thread safety:   8 tests x2 (MSVC + GCC^)
     echo   smart_ptr (Catch2^): 39 tests x2 (MSVC + GCC^)
     echo.
-    echo   Total: 211 tests across 8 suites
+    echo   Total: 221 tests across 8 suites
     echo ============================================
     exit /b 0
 ) else (

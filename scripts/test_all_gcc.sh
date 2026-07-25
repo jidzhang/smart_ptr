@@ -38,7 +38,7 @@ else
         echo "  [FAILED] Tests failed"
         FAIL=$((FAIL+1))
     else
-        echo "  [PASS] 13/13"
+        echo "  [PASS] 16/16"
         PASS=$((PASS+1))
     fi
 fi
@@ -54,7 +54,7 @@ else
         echo "  [FAILED] Tests failed"
         FAIL=$((FAIL+1))
     else
-        echo "  [PASS] 38/38"
+        echo "  [PASS] 40/40"
         PASS=$((PASS+1))
     fi
 fi
@@ -141,20 +141,20 @@ echo "============================================"
 
 if [ $FAIL -eq 0 ]; then
     echo ""
-    echo "  smart_ptr.h:        13 tests (GCC)"
-    echo "  smart_ptr_mt.h:     38 tests (GCC)"
+    echo "  smart_ptr.h:        16 tests (GCC)"
+    echo "  smart_ptr_mt.h:     40 tests (GCC)"
     if [ $ON_WINDOWS -eq 1 ]; then
         echo "  test_com.cpp:        5 tests (GCC)"
         echo "  race condition:      5 tests (GCC)"
         echo "  thread safety:       8 tests (GCC)"
         echo ""
-        echo "  Total: 69 tests across 5 suites"
+        echo "  Total: 74 tests across 5 suites"
     else
         echo "  test_com.cpp:        SKIPPED (Windows-only)"
         echo "  race condition:      5 tests (GCC)"
         echo "  thread safety:       8 tests (GCC)"
         echo ""
-        echo "  Total: 64 tests across 4 suites (1 skipped)"
+        echo "  Total: 69 tests across 4 suites (1 skipped)"
     fi
     echo "============================================"
     exit 0

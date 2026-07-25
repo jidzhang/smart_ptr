@@ -319,7 +319,8 @@ int main()
         { test_pointer_cast_cross_type, "pointer casts (cross-type, rebind)" }
     };
 
-    for (int i = 0; i < 16; i++) {
+    const int num_tests = sizeof(tests) / sizeof(tests[0]);
+    for (int i = 0; i < num_tests; i++) {
         test_count++;
         printf("[Test %d] %s\n", test_count, tests[i].name);
         if (tests[i].func()) {

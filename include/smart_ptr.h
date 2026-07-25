@@ -627,7 +627,29 @@ namespace smart_ptr
 		lhs.swap(rhs);
 	}
 
+	// ----------------------------------------------------------------
 	// pointer casts (STL style) — share ref_count to avoid double-free
+	//
+	// IMPORTANT — virtual destructor requirement:
+	//   Unlike std::shared_ptr, the deleter (mem_mgr) is NOT type-erased.
+	//   The cast result carries mem_mgr::rebind<T>::other, so when the
+	//   last strong reference is released the object is destroyed via
+	//   "delete static_cast<T*>(ptr)".
+	//
+	//   When casting from a derived type to a base type, e.g.:
+	//       shared_ptr<Base> b = static_pointer_cast<Base>(spDerived);
+	//   the deleter becomes std_mem_mgr<Base>, which calls
+	//   "delete (Base*)ptr".  This is well-defined ONLY IF Base has a
+	//   virtual destructor.  If Base is non-polymorphic the behavior
+	//   is undefined (partial destruction / memory leak).
+	//
+	//   Rule: always declare a virtual destructor on any base class
+	//   that will be used as a cast target, e.g.:
+	//       struct Base { virtual ~Base() {} };
+	//
+	//   Same-type casts (T == Q) and casts to more-derived types are
+	//   always safe regardless of virtual destructor presence.
+	// ----------------------------------------------------------------
 	template <class T, class Q, typename mem_mgr>
 	shared_ptr<T, typename mem_mgr::template rebind<T>::other> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
