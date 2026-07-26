@@ -45,7 +45,14 @@ namespace smart_ptr
 	class ref_count
 	{
 	public:
-		ref_count() : m_strong_ref_count(1), m_weak_ref_count(1)
+		typedef void (*DisposeFn)(const void*);
+
+		// Captures the original pointer and its constructed-type disposer
+		// (dispose_object_thunk) so destruction cannot depend on the
+		// static type of the pointer releasing the last strong reference.
+		ref_count(const void* managed, DisposeFn dispose)
+			: m_strong_ref_count(1), m_weak_ref_count(1),
+			  m_managed(managed), m_dispose(dispose)
 		{
 		}
 
@@ -175,6 +182,20 @@ namespace smart_ptr
 #endif
 		}
 
+		// destroy the managed object with the disposer captured at
+		// construction; only the thread that decremented the strong count
+		// to zero calls this, before the counter itself can be deleted,
+		// so no extra synchronization is needed. The guard makes a second
+		// call a no-op.
+		void dispose_object(void)
+		{
+			if (m_dispose)
+			{
+				m_dispose(m_managed);
+				m_dispose = 0;
+			}
+		}
+
 	private:
 #if defined(WIN32) || defined(_WIN32)
 		volatile LONG m_strong_ref_count;
@@ -184,7 +205,21 @@ namespace smart_ptr
 		volatile int m_strong_ref_count;
 		volatile int m_weak_ref_count;
 #endif
+		const void* m_managed;
+		DisposeFn m_dispose;
 	};
+
+	// Type-erased disposer stored in ref_count: destroys the object as its
+	// original constructed type Q through the deleter family mm (std/com/array).
+	// See the pointer-cast section below for the design rationale. Const is
+	// only ever added by view conversions, never by construction, so stripping
+	// it back to Q* is well-defined.
+	template <class Q, class mm>
+	void dispose_object_thunk(const void* p)
+	{
+		typedef typename mm::template rebind<Q>::other rebound_mgr;
+		rebound_mgr::deallocate(const_cast<Q*>(static_cast<const Q*>(p)));
+	}
 
 #if defined(WIN32) || defined(_WIN32)
 	template <class T>
@@ -202,13 +237,13 @@ namespace smart_ptr
 	template <class T, typename mem_mgr> class weak_ptr;
 
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, typename mem_mgr::template rebind<T>::other> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
+	shared_ptr<T, mem_mgr> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, typename mem_mgr::template rebind<T>::other> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
+	shared_ptr<T, mem_mgr> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, typename mem_mgr::template rebind<T>::other> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
+	shared_ptr<T, mem_mgr> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, typename mem_mgr::template rebind<T>::other> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
+	shared_ptr<T, mem_mgr> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp);
 
 	// base class for shared_ptr and weak_ptr
 	template <class T, bool is_strong, typename mem_mgr>
@@ -219,14 +254,21 @@ namespace smart_ptr
 		{
 			if (p)
 			{
-				if (is_strong)
-				{
-					// allocate a new ref_count before taking ownership of p;
-					// if new throws, m_ptr is still 0 and p will not be
-					// double-deleted by any partially-constructed object.
-					m_counter = new ref_count;
-				}
+				init_owned(p, &dispose_object_thunk<T, mem_mgr>);
 				m_ptr = p;
+			}
+		}
+
+		// As above, but the constructed type Q differs from the static
+		// type T (e.g. shared_ptr<Base> from new Derived): the disposer
+		// is captured for Q.
+		template <class Q>
+		base_ptr(Q* p, typename ref_count::DisposeFn dispose) : m_counter(0), m_ptr(0)
+		{
+			if (p)
+			{
+				init_owned(p, dispose);
+				m_ptr = static_cast<T*>(p);
 			}
 		}
 
@@ -373,6 +415,17 @@ namespace smart_ptr
 		ref_count* m_counter;
 		T* m_ptr;
 
+		// Allocate the control block before ownership of the pointer is
+		// stored: if new throws, m_ptr is still 0 and no partially
+		// constructed object will delete p.
+		void init_owned(const void* managed, typename ref_count::DisposeFn dispose)
+		{
+			if (is_strong)
+			{
+				m_counter = new ref_count(managed, dispose);
+			}
+		}
+
 		template <typename TP1, typename TP2>
 		static void private_swap(TP1& obj1, TP2& obj2)
 		{
@@ -417,7 +470,9 @@ namespace smart_ptr
 				{
 					if (0 == counter->dec_ref())
 					{
-						mem_mgr::deallocate(m_ptr);
+						// destroy through the control block so the object dies
+						// as its original constructed type, not as T
+						counter->dispose_object();
 						if (0 == counter->dec_weak_ref())
 						{
 							delete counter;
@@ -460,11 +515,9 @@ namespace smart_ptr
 	class std_mem_mgr
 	{
 	public:
-		// rebind<U>::other yields std_mem_mgr<U>. Used by the *_pointer_cast()
-		// helpers so that, e.g., static_pointer_cast<Base>(shared_ptr<Derived>)
-		// rebinds the deleter from std_mem_mgr<Derived> to std_mem_mgr<Base>;
-		// without this, release() would call deallocate(Base*) on a deleter
-		// whose parameter type is Derived*, which fails to type-check.
+		// rebind<U>::other yields std_mem_mgr<U>. Used by dispose_object_thunk
+		// to form the deleter for the original constructed type captured in
+		// the control block at construction time.
 		template <typename U>
 		struct rebind
 		{
@@ -496,13 +549,13 @@ namespace smart_ptr
 		// Pointer casts share another shared_ptr's control block directly rather than
 		// through acquire(), so they need access to the protected members.
 		template <class TT, class QQ, typename mm>
-		friend shared_ptr<TT, typename mm::template rebind<TT>::other> static_pointer_cast(const shared_ptr<QQ, mm>& sp);
+		friend shared_ptr<TT, mm> static_pointer_cast(const shared_ptr<QQ, mm>& sp);
 		template <class TT, class QQ, typename mm>
-		friend shared_ptr<TT, typename mm::template rebind<TT>::other> dynamic_pointer_cast(const shared_ptr<QQ, mm>& sp);
+		friend shared_ptr<TT, mm> dynamic_pointer_cast(const shared_ptr<QQ, mm>& sp);
 		template <class TT, class QQ, typename mm>
-		friend shared_ptr<TT, typename mm::template rebind<TT>::other> const_pointer_cast(const shared_ptr<QQ, mm>& sp);
+		friend shared_ptr<TT, mm> const_pointer_cast(const shared_ptr<QQ, mm>& sp);
 		template <class TT, class QQ, typename mm>
-		friend shared_ptr<TT, typename mm::template rebind<TT>::other> reinterpret_pointer_cast(const shared_ptr<QQ, mm>& sp);
+		friend shared_ptr<TT, mm> reinterpret_pointer_cast(const shared_ptr<QQ, mm>& sp);
 
 	public:
 		shared_ptr() : baseClass(0)
@@ -510,7 +563,7 @@ namespace smart_ptr
 		}
 
 		template<class Q>
-		explicit shared_ptr(Q* p) : baseClass(static_cast<T*>(p))
+		explicit shared_ptr(Q* p) : baseClass(p, &dispose_object_thunk<Q, mem_mgr>)
 		{
 		}
 
@@ -737,30 +790,19 @@ namespace smart_ptr
 	// ----------------------------------------------------------------
 	// pointer casts (STL style) — share ref_count to avoid double-free
 	//
-	// IMPORTANT — virtual destructor requirement:
-	//   Unlike std::shared_ptr, the deleter (mem_mgr) is NOT type-erased.
-	//   The cast result carries mem_mgr::rebind<T>::other, so when the
-	//   last strong reference is released the object is destroyed via
-	//   "delete static_cast<T*>(ptr)".
-	//
-	//   When casting from a derived type to a base type, e.g.:
-	//       shared_ptr<Base> b = static_pointer_cast<Base>(spDerived);
-	//   the deleter becomes std_mem_mgr<Base>, which calls
-	//   "delete (Base*)ptr".  This is well-defined ONLY IF Base has a
-	//   virtual destructor.  If Base is non-polymorphic the behavior
-	//   is undefined (partial destruction / memory leak).
-	//
-	//   Rule: always declare a virtual destructor on any base class
-	//   that will be used as a cast target, e.g.:
-	//       struct Base { virtual ~Base() {} };
-	//
-	//   Same-type casts (T == Q) and casts to more-derived types are
-	//   always safe regardless of virtual destructor presence.
+	// All four casts share the source's control block, so the source and
+	// every cast result form one ownership group. The deleter is captured
+	// (type-erased) in the control block when the object is constructed
+	// and always destroys the original object as its original constructed
+	// type, no matter which member of the group releases the last strong
+	// reference. Casting therefore imposes no virtual destructor
+	// requirement on any participating type — same semantics as
+	// std::shared_ptr.
 	// ----------------------------------------------------------------
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, typename mem_mgr::template rebind<T>::other> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	shared_ptr<T, mem_mgr> static_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		shared_ptr<T, typename mem_mgr::template rebind<T>::other> result;
+		shared_ptr<T, mem_mgr> result;
 		result.m_counter = sp.m_counter;
 		result.m_ptr = static_cast<T*>(sp.get());
 		if (result.m_counter)
@@ -771,12 +813,12 @@ namespace smart_ptr
 	}
 
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, typename mem_mgr::template rebind<T>::other> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	shared_ptr<T, mem_mgr> dynamic_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
 		T* p = dynamic_cast<T*>(sp.get());
 		if (p)
 		{
-			shared_ptr<T, typename mem_mgr::template rebind<T>::other> result;
+			shared_ptr<T, mem_mgr> result;
 			result.m_counter = sp.m_counter;
 			result.m_ptr = p;
 			if (result.m_counter)
@@ -785,13 +827,13 @@ namespace smart_ptr
 			}
 			return result;
 		}
-		return shared_ptr<T, typename mem_mgr::template rebind<T>::other>();
+		return shared_ptr<T, mem_mgr>();
 	}
 
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, typename mem_mgr::template rebind<T>::other> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	shared_ptr<T, mem_mgr> const_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		shared_ptr<T, typename mem_mgr::template rebind<T>::other> result;
+		shared_ptr<T, mem_mgr> result;
 		result.m_counter = sp.m_counter;
 		result.m_ptr = const_cast<T*>(sp.get());
 		if (result.m_counter)
@@ -802,9 +844,9 @@ namespace smart_ptr
 	}
 
 	template <class T, class Q, typename mem_mgr>
-	shared_ptr<T, typename mem_mgr::template rebind<T>::other> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
+	shared_ptr<T, mem_mgr> reinterpret_pointer_cast(const shared_ptr<Q, mem_mgr>& sp)
 	{
-		shared_ptr<T, typename mem_mgr::template rebind<T>::other> result;
+		shared_ptr<T, mem_mgr> result;
 		result.m_counter = sp.m_counter;
 		result.m_ptr = reinterpret_cast<T*>(sp.get());
 		if (result.m_counter)
@@ -1398,7 +1440,8 @@ namespace smart_ptr
 	class com_mem_mgr
 	{
 	public:
-		// rebind<U>::other yields com_mem_mgr<U>; see std_mem_mgr::rebind.
+		// rebind<U>::other yields com_mem_mgr<U>; used by
+		// dispose_object_thunk (see std_mem_mgr::rebind).
 		template <typename U>
 		struct rebind
 		{
@@ -1427,7 +1470,8 @@ namespace smart_ptr
 	class array_mem_mgr
 	{
 	public:
-		// rebind<U>::other yields array_mem_mgr<U>; see std_mem_mgr::rebind.
+		// rebind<U>::other yields array_mem_mgr<U>; used by
+		// dispose_object_thunk (see std_mem_mgr::rebind).
 		template <typename U>
 		struct rebind
 		{
@@ -1501,22 +1545,22 @@ namespace smart_ptr
 #endif // EMPTY_NAME_SPACE
 
 // defining COM smart pointer type
-#ifndef DEFINE_COM_STRONG_PTR
-#define DEFINE_COM_STRONG_PTR(NAME_SPACE_T, TYPE) \
+#ifndef DEFINE_COM_SHARED_PTR
+#define DEFINE_COM_SHARED_PTR(NAME_SPACE_T, TYPE) \
 	typedef smart_ptr::shared_ptr<NAME_SPACE_T::TYPE, smart_ptr::com_mem_mgr<NAME_SPACE_T::TYPE> > TYPE##ComPtr;
-#endif // DEFINE_COM_STRONG_PTR
+#endif // DEFINE_COM_SHARED_PTR
 
 // defining standard smart pointer type
-#ifndef DEFINE_STD_STRONG_PTR
-#define DEFINE_STD_STRONG_PTR(NAME_SPACE_T, TYPE) \
+#ifndef DEFINE_STD_SHARED_PTR
+#define DEFINE_STD_SHARED_PTR(NAME_SPACE_T, TYPE) \
 	typedef smart_ptr::shared_ptr<NAME_SPACE_T::TYPE, smart_ptr::std_mem_mgr<NAME_SPACE_T::TYPE> > TYPE##StdPtr;
-#endif // DEFINE_STD_STRONG_PTR
+#endif // DEFINE_STD_SHARED_PTR
 
 // defining array style smart pointer type
-#ifndef DEFINE_ARR_STRONG_PTR
-#define DEFINE_ARR_STRONG_PTR(NAME_SPACE_T, TYPE) \
+#ifndef DEFINE_ARR_SHARED_PTR
+#define DEFINE_ARR_SHARED_PTR(NAME_SPACE_T, TYPE) \
 	typedef smart_ptr::shared_array<NAME_SPACE_T::TYPE, smart_ptr::array_mem_mgr<NAME_SPACE_T::TYPE> > TYPE##ArrPtr;
-#endif // DEFINE_ARR_STRONG_PTR
+#endif // DEFINE_ARR_SHARED_PTR
 
 }; // namespace smart_ptr
 

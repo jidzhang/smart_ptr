@@ -9,9 +9,12 @@ REM  test set against each. No hardcoded pass counts -- each test
 REM  binary is its own oracle (exits non-zero on failure).
 REM
 REM  Test set by tier:
-REM    cpp98 (VS2005/2008/2010) -> demo only (no C++11 in those)
+REM    cpp98 (VS2005/2008/2010) -> demo + comprehensive + dispose
+REM                                (these compilers take the real C++98
+REM                                code path; move/cast tests stub out)
 REM    full  (VS2012+, Clang, GCC) -> demo + comprehensive +
-REM                                   comprehensive_mt + race + com
+REM                                   comprehensive_mt + race + com +
+REM                                   dispose semantics
 REM
 REM  Env isolation: every MSVC/Clang target runs inside its own
 REM  setlocal/endlocal so one vcvarsall cannot leak into the next.
@@ -45,7 +48,7 @@ del "%LIST%" >nul 2>&1
 del _err.tmp 2>nul
 
 REM Cleanup this run's artifacts only (explicit patterns; never bare test_*).
-for %%f in (demo_*.exe comp_*.exe comp_mt_*.exe race_*.exe com_*.exe ts_*.exe sp_*.exe *.obj *.pdb *.ilk *.exp) do (
+for %%f in (demo_*.exe comp_*.exe comp_mt_*.exe comp98_*.exe race_*.exe com_*.exe ts_*.exe sp_*.exe dispose_*.exe *.obj *.pdb *.ilk *.exp) do (
     if exist "%%f" del /q "%%f" 2>nul
 )
 
@@ -110,7 +113,9 @@ if errorlevel 1 (
 )
 if "!TIER!"=="cpp98" (
     set "BASE=-nologo -W3 -EHsc -O2"
-    call :msvc_test demo "..\demo.cpp" "demo_!LABEL!.exe" "!BASE!"
+    call :msvc_test demo    "..\demo.cpp"                     "demo_!LABEL!.exe"    "!BASE!"
+    call :msvc_test comp    "..\tests\test_comprehensive.cpp" "comp_!LABEL!.exe"    "!BASE!"
+    call :msvc_test dispose "..\tests\test_dispose_semantics.cpp" "dispose_!LABEL!.exe" "!BASE!"
 ) else (
     set "BASE=-nologo -W4 -EHsc -utf-8 -O2"
     set "COMFLAGS=-nologo -W4 -EHsc -O2 -DUNICODE -D_UNICODE"
@@ -121,6 +126,7 @@ if "!TIER!"=="cpp98" (
     call :msvc_test com     "..\tests\test_com.cpp"              "com_!LABEL!.exe"    "!COMFLAGS!"
     call :msvc_test ts      "..\tests\test_thread_safety.cpp"    "ts_!LABEL!.exe"     "!BASE!"
     call :msvc_test sp      "..\tests\test_smart_ptr.cpp"        "sp_!LABEL!.exe"     "!BASE!"
+    call :msvc_test dispose "..\tests\test_dispose_semantics.cpp" "dispose_!LABEL!.exe" "!BASE!"
 )
 endlocal & set "PASS=%PASS%" & set "FAIL=%FAIL%" & set "SKIP=%SKIP%"
 goto :eof
@@ -136,6 +142,12 @@ set "DEMOBASE=-Wall -O2"
 REM gcc4 tier (old MinGW, no <thread>): demo + comprehensive only.
 call :gnu_test demo    "..\demo.cpp"                        "demo_!LABEL!.exe"    "!DEMOBASE!"
 call :gnu_test comp    "..\tests\test_comprehensive.cpp"    "comp_!LABEL!.exe"    "!GBASE!"
+call :gnu_test dispose "..\tests\test_dispose_semantics.cpp" "dispose_!LABEL!.exe" "!GBASE!"
+REM C++98 code path: on VS2015+ MSVC the _MSC_VER macro forces the C++11
+REM branch even under /std:c++03, so GCC is the only toolchain that
+REM actually compiles the C++98 branch. No -O2: the warning gate role is
+REM served elsewhere and -O2 invites inlining false positives.
+call :gnu_test comp98  "..\tests\test_comprehensive.cpp"    "comp98_!LABEL!.exe"  "-std=c++98 -Wall"
 if "!TIER!"=="full" (
     call :gnu_test comp_mt "..\tests\test_comprehensive_mt.cpp" "comp_mt_!LABEL!.exe" "!GBASE!"
     call :gnu_test race    "..\tests\test_race_condition.cpp"   "race_!LABEL!.exe"   "!GBASE! -pthread"

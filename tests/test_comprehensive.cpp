@@ -190,6 +190,53 @@ int test_weak_ptr_comparison_thread_safety()
     return 1;
 }
 
+// Disposal must always happen as the originally constructed type, no
+// matter which static type the releasing shared_ptr has — the control
+// block captures the deleter at construction (same guarantee as
+// std::shared_ptr). No virtual destructor is involved here on purpose:
+// these hierarchies are non-polymorphic.
+static int g_noVdtorDtors = 0;
+struct NoVdtorBase { int v; };
+struct NoVdtorDerived : NoVdtorBase
+{
+    NoVdtorDerived() { v = 9; }
+    ~NoVdtorDerived() { ++g_noVdtorDtors; }
+};
+
+int test_dispose_order_independence()
+{
+    // direct upcast construction
+    g_noVdtorDtors = 0;
+    {
+        shared_ptr<NoVdtorBase> b(new NoVdtorDerived());
+        if (b->v != 9) return 0;
+    }
+    if (g_noVdtorDtors != 1) return 0;
+
+    // cast, base view dies last
+    g_noVdtorDtors = 0;
+    {
+        shared_ptr<NoVdtorDerived> d(new NoVdtorDerived());
+        shared_ptr<NoVdtorBase> b = static_pointer_cast<NoVdtorBase>(d);
+        d.reset();
+        if (g_noVdtorDtors != 0) return 0;
+        if (b->v != 9) return 0;
+    }
+    if (g_noVdtorDtors != 1) return 0;
+
+    // cast, derived view dies last
+    g_noVdtorDtors = 0;
+    {
+        shared_ptr<NoVdtorDerived> d(new NoVdtorDerived());
+        {
+            shared_ptr<NoVdtorBase> b = static_pointer_cast<NoVdtorBase>(d);
+            if (b->v != 9) return 0;
+        }
+        if (g_noVdtorDtors != 0) return 0;
+    }
+    return g_noVdtorDtors == 1;
+}
+
 #if __cplusplus >= 201103L || _MSC_VER >= 1900
 int test_shared_ptr_move()
 {
@@ -261,8 +308,8 @@ int test_pointer_cast()
 
 int test_pointer_cast_cross_type()
 {
-    // Cross-type casts must rebind the deleter to the target type so the
-    // returned shared_ptr<Base> deletes via std_mem_mgr<Base> and compiles.
+    // Cross-type casts share the source's control block; the deleter is
+    // type-erased there and always destroys the original constructed type.
     shared_ptr<Derived> d(new Derived());
     shared_ptr<Base> b1 = static_pointer_cast<Base>(d);
     if (b1.get() != d.get()) return 0;
@@ -316,7 +363,8 @@ int main()
         { test_weak_ptr_move, "weak_ptr move semantics" },
         { test_shared_ptr_cross_type_move, "shared_ptr cross-type move" },
         { test_pointer_cast, "pointer casts (same-type)" },
-        { test_pointer_cast_cross_type, "pointer casts (cross-type, rebind)" }
+        { test_pointer_cast_cross_type, "pointer casts (cross-type)" },
+        { test_dispose_order_independence, "dispose as constructed type (no virtual dtor)" }
     };
 
     const int num_tests = sizeof(tests) / sizeof(tests[0]);

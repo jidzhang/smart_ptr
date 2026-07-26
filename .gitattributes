@@ -1,0 +1,17 @@
+# 行尾规则：
+#   默认自动识别文本文件并统一 LF 入库（不再依赖各台机器的 core.autocrlf）
+#   *.bat 必须 CRLF —— cmd 对 LF-only 批处理的 label/goto 扫描会间歇失败
+#   *.sh  必须 LF
+#   源代码统一 LF，编码 UTF-8（无 BOM），MSVC 侧以 -utf-8 选项处理
+#   catch*.hpp 为第三方单头文件，按原始字节保存，不做行尾转换
+* text=auto
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh  text eol=lf
+*.c   text eol=lf
+*.cpp text eol=lf
+*.h   text eol=lf
+*.inl text eol=lf
+*.md  text eol=lf
+*.py  text eol=lf
+catch*.hpp -text
